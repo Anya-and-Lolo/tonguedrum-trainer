@@ -785,7 +785,7 @@
     settingsDialog: $('settingsDialog'), settingsForm: $('settingsForm'), instrumentKeySelect: $('instrumentKeySelect'), scaleTypeSelect: $('scaleTypeSelect'), noteCountSelect: $('noteCountSelect'), rootOctaveSelect: $('rootOctaveSelect'), highDrumOption: $('highDrumOption'), highDrumAvailability: $('highDrumAvailability'), highDrumToggle: $('highDrumToggle'), highDrumAlwaysToggle: $('highDrumAlwaysToggle'), companionTuningSection: $('companionTuningSection'), companionTuningGrid: $('companionTuningGrid'), colourPopover: $('colourPopover'), pitchInfoBtn: $('pitchInfoBtn'), pitchInfo: $('pitchInfo'), noteGuideBody: $('noteGuideBody'), noteGuideOctave: $('noteGuideOctave'), tuningGrid: $('tuningGrid'), saveSettingsBtn: $('saveSettingsBtn'),
     scanSheetBtn: $('scanSheetBtn'), scanDialog: $('scanDialog'), scanDrop: $('scanDrop'), scanFile: $('scanFile'),
     scanCanvas: $('scanCanvas'), scanStatus: $('scanStatus'), scanGroups: $('scanGroups'), scanApplyBtn: $('scanApplyBtn'), scanStage: $('scanStage'),
-    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'), fullscreenBtn: $('fullscreenBtn'), soundWakeBtn: $('soundWakeBtn'), hintPop: $('hintPop'), stageDock: $('stageDock'), dockLoopBtn: $('dockLoopBtn'), dockPlayBtn: $('dockPlayBtn'), dockMetronomeBtn: $('dockMetronomeBtn'), speedCycleBtn: $('speedCycleBtn'), speedCycleValue: $('speedCycleValue'),
+    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'), fullscreenBtn: $('fullscreenBtn'), soundWakeBtn: $('soundWakeBtn'), hintPop: $('hintPop'), learnBtn: $('learnBtn'), topNewSongBtn: $('topNewSongBtn'), stageDock: $('stageDock'), dockLoopBtn: $('dockLoopBtn'), dockPlayBtn: $('dockPlayBtn'), dockMetronomeBtn: $('dockMetronomeBtn'), speedCycleBtn: $('speedCycleBtn'), speedCycleValue: $('speedCycleValue'),
     tourOverlay: $('tourOverlay'), tourShadeTop: $('tourShadeTop'), tourShadeRight: $('tourShadeRight'), tourShadeBottom: $('tourShadeBottom'), tourShadeLeft: $('tourShadeLeft'), tourFocusRing: $('tourFocusRing'), tourCard: $('tourCard'), tourProgress: $('tourProgress'), tourTitle: $('tourTitle'), tourText: $('tourText'), tourSkipBtn: $('tourSkipBtn'), tourBackBtn: $('tourBackBtn'), tourNextBtn: $('tourNextBtn'), tourDontShowAgain: $('tourDontShowAgain'),
     tunerPanel: $('tunerPanel'), tunerLabel: $('tunerLabel'), tunerNoteName: $('tunerNoteName'), tunerCents: $('tunerCents'), tunerMeter: $('tunerMeter'), tunerNeedle: $('tunerNeedle'),
     resultDialog: $('resultDialog'), resultTitle: $('resultTitle'), resultSummary: $('resultSummary'), resultStats: $('resultStats'), resultHitValue: $('resultHitValue'), resultAccuracyValue: $('resultAccuracyValue'), resultStreakValue: $('resultStreakValue'), resultMistakes: $('resultMistakes'), resultRecommendation: $('resultRecommendation'), resultRecommendedBtn: $('resultRecommendedBtn'), resultReplayBtn: $('resultReplayBtn'), practiceMistakesBtn: $('practiceMistakesBtn'), resultNextBtn: $('resultNextBtn')
@@ -7464,6 +7464,13 @@
     if (!tape.visible || !tape.top) return geometry;
     const ext = 0.53;
     const maxBottom = tape.top - 6;
+    if (width <= 760) {
+      // Phones: the drum sits centred between the score row and the tape, as large as fits.
+      const top = 64;
+      const room = maxBottom - top;
+      const drumSize = Math.max(170, Math.min(Math.max(geometry.drumSize, Math.min(width * 0.94, 440)), (room - 8) / (ext * 2)));
+      return { drumSize, scale: drumSize / STAGE_DRUM_BASE, cx: geometry.cx, cy: top + drumSize * ext + Math.max(0, room - drumSize * ext * 2) * 0.55 };
+    }
     if (document.body.classList.contains('tablet-fit')) {
       // Tablets: the drum grows into the stage that now fills the screen.
       const top = 56;
@@ -7688,6 +7695,8 @@
     els.sidebarScrim?.addEventListener('click', () => els.sidebar.classList.remove('open'));
     els.songSearch.addEventListener('input', renderSongList);
     els.newSongBtn.addEventListener('click', () => openEditor());
+    els.topNewSongBtn?.addEventListener('click', () => openEditor());
+    els.learnBtn?.addEventListener('click', () => openSongGuide('editor'));
     els.editBtn.addEventListener('click', () => {
       const song = selectedSong();
       if (song?.builtIn) openEditor({ ...song, id: null, sourceSongId: song.id, title: `${song.title} copy`, builtIn: false });

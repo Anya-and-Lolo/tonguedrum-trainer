@@ -2914,3 +2914,19 @@ body.tablet-fit .practice-card .drum-body { width:min(100%, 300px); }
 }
 .trainer-grid.tuner-mode .stage-dock, .trainer-grid.tuner-mode .speed-cycle-btn { display:none !important; }
 body.tablet-fit .speed-row .mic-status { display:none; }
+
+/* v15c: same header icons as the handpan app */
+.top-new-btn { display:none; }
+.top-actions .btn-icon { display:none; }
+.top-actions .learn-btn .btn-icon { display:block; }
+.top-actions .learn-btn { color:var(--accent-2); }
+@media (max-width:900px) {
+  .top-actions #editBtn::after, .top-actions #settingsBtn::after { content:none !important; }
+  .top-actions .btn-icon { display:block; }
+  .top-actions .btn-text, .top-actions .install-btn span, .top-actions .tour-btn span { display:none; }
+  .top-new-btn { display:grid; }
+  .top-actions > button { width:40px; height:40px; min-width:40px; padding:0; display:grid; place-items:center; border-radius:12px; }
+  .top-actions #topNewSongBtn { margin-left:10px; }
+  .top-actions .fullscreen-btn { display:none; }
+}
+body.tablet-fit .top-actions .fullscreen-btn:not([hidden]) { display:inline-flex; }
