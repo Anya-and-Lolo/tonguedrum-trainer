@@ -83,10 +83,12 @@
             <span>Donate</span>
           </a>
           <button class="soft-btn compact tour-btn" id="helpTourBtn" type="button" aria-label="Open app walkthrough" title="Tour: help and walkthrough"><b class="tour-q" aria-hidden="true">?</b><span>Tour</span></button>
+          <button class="soft-btn compact learn-btn" id="learnBtn" type="button" aria-label="Learn: notes, timing and the music sheet" title="Learn: notes, timing and the music sheet"><svg class="btn-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 6.5C10.3 5.2 7.6 4.7 4.5 5v12.6c3.1-.3 5.8.2 7.5 1.5 1.7-1.3 4.4-1.8 7.5-1.5V5c-3.1-.3-5.8.2-7.5 1.5z"></path><path d="M12 6.5v12.6"></path></svg><span class="btn-text">Learn</span></button>
           <button class="soft-btn compact install-btn" id="installBtn" type="button" aria-label="Install the app" title="Install as an app" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7.5 10.5L12 15l4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>Install</span></button>
           <button class="soft-btn compact fullscreen-btn" id="fullscreenBtn" type="button" aria-label="Full screen" title="Full screen: hide the system bars"><svg class="fs-enter" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><svg class="fs-exit" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg></button>
-          <button class="soft-btn compact" id="editBtn">Edit song</button>
-          <button class="soft-btn compact" id="settingsBtn">My Drum</button>
+          <button class="soft-btn compact top-new-btn" id="topNewSongBtn" type="button" aria-label="New song" title="New song"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" aria-hidden="true"><path d="M12 5.5v13M5.5 12h13"></path></svg></button>
+          <button class="soft-btn compact" id="editBtn" aria-label="Edit song"><svg class="btn-icon" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg><span class="btn-text">Edit song</span></button>
+          <button class="soft-btn compact" id="settingsBtn" aria-label="My Drum"><svg class="btn-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3.1"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg><span class="btn-text">My Drum</span></button>
           <button class="icon-btn mobile-view-toggle" id="mobileViewToggleBtn" type="button" data-view="radial" aria-label="Switch display to Falling lanes" title="Switch to Falling lanes">
             <svg class="view-mode-icon view-mode-icon-drum" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="12" cy="12" r="1.8"></circle>
@@ -94,7 +96,6 @@
             </svg>
             <svg class="view-mode-icon view-mode-icon-lanes" viewBox="0 0 24 24" aria-hidden="true">
               <path d="M7 4v15M4.5 16.5 7 19l2.5-2.5M17 20V5M14.5 7.5 17 5l2.5 2.5"></path>
-              <path class="lane-guide" d="M2.5 4v16M12 3v18M21.5 4v16"></path>
             </svg>
           </button>
         </div>
