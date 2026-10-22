@@ -785,7 +785,7 @@
     settingsDialog: $('settingsDialog'), settingsForm: $('settingsForm'), instrumentKeySelect: $('instrumentKeySelect'), scaleTypeSelect: $('scaleTypeSelect'), noteCountSelect: $('noteCountSelect'), rootOctaveSelect: $('rootOctaveSelect'), highDrumOption: $('highDrumOption'), highDrumAvailability: $('highDrumAvailability'), highDrumToggle: $('highDrumToggle'), highDrumAlwaysToggle: $('highDrumAlwaysToggle'), companionTuningSection: $('companionTuningSection'), companionTuningGrid: $('companionTuningGrid'), colourPopover: $('colourPopover'), pitchInfoBtn: $('pitchInfoBtn'), pitchInfo: $('pitchInfo'), noteGuideBody: $('noteGuideBody'), noteGuideOctave: $('noteGuideOctave'), tuningGrid: $('tuningGrid'), saveSettingsBtn: $('saveSettingsBtn'),
     scanSheetBtn: $('scanSheetBtn'), scanDialog: $('scanDialog'), scanDrop: $('scanDrop'), scanFile: $('scanFile'),
     scanCanvas: $('scanCanvas'), scanStatus: $('scanStatus'), scanGroups: $('scanGroups'), scanApplyBtn: $('scanApplyBtn'), scanStage: $('scanStage'),
-    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'),
+    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'), fullscreenBtn: $('fullscreenBtn'), soundWakeBtn: $('soundWakeBtn'), hintPop: $('hintPop'), stageDock: $('stageDock'), dockLoopBtn: $('dockLoopBtn'), dockPlayBtn: $('dockPlayBtn'), dockMetronomeBtn: $('dockMetronomeBtn'), speedCycleBtn: $('speedCycleBtn'), speedCycleValue: $('speedCycleValue'),
     tourOverlay: $('tourOverlay'), tourShadeTop: $('tourShadeTop'), tourShadeRight: $('tourShadeRight'), tourShadeBottom: $('tourShadeBottom'), tourShadeLeft: $('tourShadeLeft'), tourFocusRing: $('tourFocusRing'), tourCard: $('tourCard'), tourProgress: $('tourProgress'), tourTitle: $('tourTitle'), tourText: $('tourText'), tourSkipBtn: $('tourSkipBtn'), tourBackBtn: $('tourBackBtn'), tourNextBtn: $('tourNextBtn'), tourDontShowAgain: $('tourDontShowAgain'),
     tunerPanel: $('tunerPanel'), tunerLabel: $('tunerLabel'), tunerNoteName: $('tunerNoteName'), tunerCents: $('tunerCents'), tunerMeter: $('tunerMeter'), tunerNeedle: $('tunerNeedle'),
     resultDialog: $('resultDialog'), resultTitle: $('resultTitle'), resultSummary: $('resultSummary'), resultStats: $('resultStats'), resultHitValue: $('resultHitValue'), resultAccuracyValue: $('resultAccuracyValue'), resultStreakValue: $('resultStreakValue'), resultMistakes: $('resultMistakes'), resultRecommendation: $('resultRecommendation'), resultRecommendedBtn: $('resultRecommendedBtn'), resultReplayBtn: $('resultReplayBtn'), practiceMistakesBtn: $('practiceMistakesBtn'), resultNextBtn: $('resultNextBtn')
@@ -3561,7 +3561,8 @@
   async function renderSoundBuffer(midi, referencePitch = REFERENCE_PITCH) {
     const OfflineContext = window.OfflineAudioContext || window.webkitOfflineAudioContext;
     if (!OfflineContext) return null;
-    const sampleRate = 44100;
+    // Rendered at the speaker's own rate, so playback never has to resample.
+    const sampleRate = initialiseAudioGraph()?.sampleRate || 44100;
     const duration = 1.4;
     const context = new OfflineContext(1, Math.ceil(sampleRate * duration), sampleRate);
     const frequency = Number(referencePitch) * Math.pow(2, (Number(midi) - 69) / 12);
@@ -3711,7 +3712,21 @@
       state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       state.masterGain = state.audioContext.createGain();
       state.masterGain.gain.value = document.hidden ? 0 : 1;
-      state.masterGain.connect(state.audioContext.destination);
+      // Phone and tablet speakers are small: a little more level there, with a limiter so
+      // several ringing notes together never clip and crackle.
+      if (window.matchMedia?.('(pointer: coarse)').matches) {
+        const boost = state.audioContext.createGain();
+        boost.gain.value = 1.35;
+        const limiter = state.audioContext.createDynamicsCompressor();
+        limiter.threshold.value = -3;
+        limiter.knee.value = 0;
+        limiter.ratio.value = 20;
+        limiter.attack.value = 0.002;
+        limiter.release.value = 0.12;
+        state.masterGain.connect(boost).connect(limiter).connect(state.audioContext.destination);
+      } else {
+        state.masterGain.connect(state.audioContext.destination);
+      }
     }
     return state.audioContext;
   }
@@ -3771,6 +3786,27 @@
     });
   }
 
+  // A tongue struck again does not ring twice: the earlier ring is damped. Without this
+  // two copies of the same note drift in and out of phase (a whooshing, crackly sound when
+  // a note is tapped quickly several times).
+  const ringingVoices = new Map();
+  function chokeSameNote(midi, voice) {
+    const now = state.audioContext.currentTime;
+    const list = (ringingVoices.get(midi) || []).filter(v => v.end > now);
+    list.forEach(v => {
+      if (v.choked) return;
+      if (v.start < voice.start - 0.004) {
+        v.choked = true;
+        try { v.gain.gain.setTargetAtTime(0, voice.start, 0.014); v.source.stop(voice.start + 0.12); } catch {}
+      } else if (v.start > voice.start + 0.004 && !voice.choked) {
+        voice.choked = true;
+        try { voice.gain.gain.setTargetAtTime(0, v.start, 0.014); voice.source.stop(v.start + 0.12); } catch {}
+      }
+    });
+    list.push(voice);
+    ringingVoices.set(midi, list);
+  }
+
   async function playMidi(midi, referencePitch = 440, accent = false, delaySeconds = 0, gain = 1) {
     const requestedAt = performance.now();
     let context = state.audioContext;
@@ -3782,15 +3818,12 @@
     if (cachedBuffer) {
       const source = context.createBufferSource();
       source.buffer = cachedBuffer;
-      if (accent || gain !== 1) {
-        const level = context.createGain();
-        level.gain.setValueAtTime((accent ? 4 / 3 : 1) * gain, startTime);
-        source.connect(level).connect(state.masterGain || context.destination);
-      } else {
-        source.connect(state.masterGain || context.destination);
-      }
+      const level = context.createGain();
+      level.gain.setValueAtTime((accent ? 4 / 3 : 1) * gain, startTime);
+      source.connect(level).connect(state.masterGain || context.destination);
       source.start(startTime);
       trackScheduledAudio([source], startTime);
+      chokeSameNote(midi, { source, gain: level, start: startTime, end: startTime + cachedBuffer.duration });
       return true;
     }
     const frequency = Number(referencePitch) * Math.pow(2, (Number(midi) - 69) / 12);
@@ -4215,7 +4248,7 @@
     } else if (hasB) {
       els.abLoopStatus.textContent = `B is ${formatTime(state.loopB)}. Set A before it.`;
     } else {
-      els.abLoopStatus.textContent = 'Set A and B from the timeline to practise a section.';
+      els.abLoopStatus.textContent = '';
     }
   }
 
@@ -4319,6 +4352,7 @@
   function setFocusMode(enabled) {
     state.focusMode = Boolean(enabled) && window.innerWidth <= 1100;
     document.body.classList.toggle('focus-mode', state.focusMode);
+    fitTabletStage();
     if (els.focusModeBtn) {
       els.focusModeBtn.classList.toggle('active', state.focusMode);
       els.focusModeBtn.setAttribute('aria-pressed', String(state.focusMode));
@@ -4741,6 +4775,14 @@
     els.loopBtn.setAttribute('aria-label', state.loop ? 'Turn off song loop' : 'Loop song');
     els.loopBtn.title = state.loop ? 'Turn off song loop' : 'Loop song';
     els.metronomeBtn.classList.toggle('active', state.metronome);
+    if (els.dockPlayBtn) {
+      els.dockPlayBtn.innerHTML = els.playBtn.innerHTML;
+      els.dockPlayBtn.setAttribute('aria-label', state.playing ? 'Pause' : 'Play');
+      els.dockLoopBtn.classList.toggle('active', state.loop);
+      els.dockLoopBtn.setAttribute('aria-pressed', String(state.loop));
+      els.dockMetronomeBtn.classList.toggle('active', state.metronome);
+      els.dockMetronomeBtn.setAttribute('aria-pressed', String(state.metronome));
+    }
     if (els.guideBtn) {
       const listen = state.mode === 'demo';
       els.guideBtn.classList.toggle('active', state.guide);
@@ -4854,10 +4896,10 @@
     els.trainerGrid?.classList.toggle('tuner-mode', tunerMode);
     if (els.tunerPanel) els.tunerPanel.hidden = !tunerMode;
     const hints = {
-      demo: 'Sit back and listen: the song plays and the notes light up. Nothing is scored.',
-      practice: 'Play on screen, keyboard, or enable the microphone.',
-      wait: 'The song advances after the correct tap, key, or recognised drum note.',
-      tuner: 'Strike one tongue at a time. The matching tongue and pitch meter will respond.'
+      demo: 'Listen and watch the notes, nothing is scored.',
+      practice: 'Play along on screen, keyboard, or with the microphone.',
+      wait: 'The song waits for each note. Play it to move on.',
+      tuner: 'Strike one note at a time. The note lights up and the pitch meter will respond.'
     };
     els.modeHint.textContent = hints[mode];
     if (tunerMode) {
@@ -4871,6 +4913,7 @@
     updateTransportUI();
     updatePracticeUI();
     syncTapeVisibility();
+    fitTabletStage();
     renderFrame();
   }
 
@@ -4889,6 +4932,7 @@
       els.mobileViewToggleBtn.setAttribute('aria-label', `Switch display to ${nextView}`);
       els.mobileViewToggleBtn.title = `Switch to ${nextView}`;
     }
+    fitTabletStage();
     window.requestAnimationFrame(resizeCanvas);
   }
 
@@ -7397,7 +7441,7 @@
     const tapeH = width <= 760 ? 46 : 52;
     const stage = els.noteStage.getBoundingClientRect();
     let controlsTop = height;
-    [els.focusModeBtn, tapeEls.stageSongName].forEach(el => {
+    [els.focusModeBtn, tapeEls.stageSongName, els.stageDock, els.speedCycleBtn].forEach(el => {
       if (!el) return;
       const r = el.getBoundingClientRect();
       if (!r.width || !r.height) return;
@@ -7420,6 +7464,13 @@
     if (!tape.visible || !tape.top) return geometry;
     const ext = 0.53;
     const maxBottom = tape.top - 6;
+    if (document.body.classList.contains('tablet-fit')) {
+      // Tablets: the drum grows into the stage that now fills the screen.
+      const top = 56;
+      const room = maxBottom - top;
+      const drumSize = Math.max(170, Math.min(Math.max(geometry.drumSize, Math.min(width * 0.62, 600)), (room - 8) / (ext * 2)));
+      return { drumSize, scale: drumSize / STAGE_DRUM_BASE, cx: geometry.cx, cy: top + drumSize * ext + Math.max(0, (room - drumSize * ext * 2) / 2) };
+    }
     if (geometry.cy + geometry.drumSize * ext <= maxBottom) return geometry;
     const topReserve = width <= 900 ? 60 : 18;
     const drumSize = Math.max(170, Math.min(geometry.drumSize, (maxBottom - topReserve) / (ext * 2)));
@@ -8014,8 +8065,35 @@
       if (dialog?.open) dialog.close();
     }));
     window.addEventListener('keydown', keyboardHandler);
+    bindHints();
+    bindFullscreen();
+    // Phone dock on the stage: Play opens the full-screen focus view, like the handpan app.
+    els.dockPlayBtn?.addEventListener('click', () => {
+      if (window.innerWidth <= 760 && !state.focusMode && !state.playing) setFocusMode(true);
+      els.playBtn.click();
+    });
+    els.dockLoopBtn?.addEventListener('click', () => els.loopBtn.click());
+    els.dockMetronomeBtn?.addEventListener('click', () => els.metronomeBtn.click());
+    els.speedCycleBtn?.addEventListener('click', () => {
+      const steps = [1, 0.75, 0.5, 0.25];
+      const index = steps.findIndex(step => Math.abs(step - state.speed) < 0.001);
+      els.speedSelect.value = String(index < 0 ? 1 : steps[(index + 1) % steps.length]);
+      els.speedSelect.dispatchEvent(new Event('change'));
+    });
+    els.speedSelect.addEventListener('change', () => {
+      if (els.speedCycleValue) els.speedCycleValue.textContent = `${Number(els.speedSelect.value)}×`;
+    });
+    els.soundWakeBtn?.addEventListener('click', wakeSound);
+    const firstGesture = () => {
+      if (els.soundWakeBtn && !els.soundWakeBtn.hidden) wakeSound();
+      window.removeEventListener('pointerdown', firstGesture, true);
+      window.removeEventListener('keydown', firstGesture, true);
+    };
+    window.addEventListener('pointerdown', firstGesture, true);
+    window.addEventListener('keydown', firstGesture, true);
     window.addEventListener('resize', () => {
       if (state.focusMode && window.innerWidth > 1100) setFocusMode(false);
+      fitTabletStage();
       resizeCanvas();
       positionWalkthrough();
     });
@@ -8230,6 +8308,119 @@
     document.body.classList.remove('app-loading');
     els.startupLoader?.classList.add('done');
     window.setTimeout(() => els.startupLoader?.remove(), 300);
+    fitTabletStage();
+    maybeShowSoundWake();
+  }
+
+  // Tablets (touch screens wider than a phone): the song list slides in from the left like
+  // on a phone, and the stage takes exactly the height that is left, so nothing scrolls.
+  function isTabletLayout() {
+    return window.innerWidth > 760 && window.innerHeight >= 520 && Boolean(window.matchMedia?.('(pointer: coarse)').matches);
+  }
+
+  function fitTabletStage() {
+    const stage = els.noteStage;
+    if (!stage) return;
+    const tablet = isTabletLayout() && !state.focusMode;
+    const phone = window.innerWidth <= 760 && !state.focusMode;
+    document.body.classList.toggle('tablet-fit', tablet);
+    const before = stage.style.height;
+    if (phone) {
+      stage.dataset.tabletFit = '1';
+      stage.style.height = '';
+      stage.style.minHeight = '';
+      const viewport = window.visualViewport?.height || window.innerHeight;
+      const top = stage.getBoundingClientRect().top + window.scrollY;
+      const height = Math.max(400, Math.floor(viewport - top - 14));
+      stage.style.height = `${height}px`;
+      stage.style.minHeight = `${height}px`;
+      if (before !== stage.style.height) window.requestAnimationFrame(resizeCanvas);
+      return;
+    }
+    if (!tablet) {
+      if (stage.dataset.tabletFit) {
+        stage.style.height = '';
+        stage.style.minHeight = '';
+        delete stage.dataset.tabletFit;
+        window.requestAnimationFrame(resizeCanvas);
+      }
+      return;
+    }
+    stage.dataset.tabletFit = '1';
+    stage.style.height = '';
+    stage.style.minHeight = '';
+    const card = stage.closest('.trainer-card');
+    const panel = document.querySelector('.main-panel');
+    const viewport = window.visualViewport?.height || window.innerHeight;
+    const rect = stage.getBoundingClientRect();
+    const below = card.getBoundingClientRect().bottom - rect.bottom;
+    const padBottom = parseFloat(getComputedStyle(panel).paddingBottom) || 10;
+    const height = Math.max(300, Math.floor(viewport - (rect.top + window.scrollY) - below - padBottom - 2));
+    stage.style.height = `${height}px`;
+    stage.style.minHeight = `${height}px`;
+    if (before !== stage.style.height) window.requestAnimationFrame(resizeCanvas);
+  }
+
+  // Browsers keep sound off until the first touch, so a fresh page plays silently. A
+  // friendly button invites that first touch.
+  function maybeShowSoundWake() {
+    if (!els.soundWakeBtn) return;
+    const activated = navigator.userActivation ? navigator.userActivation.hasBeenActive : false;
+    els.soundWakeBtn.hidden = activated || state.audioContext?.state === 'running';
+  }
+
+  function wakeSound() {
+    if (els.soundWakeBtn) els.soundWakeBtn.hidden = true;
+    try { primeAudioFromGesture(); } catch {}
+  }
+
+  function bindHints() {
+    const pop = els.hintPop;
+    if (!pop) return;
+    let owner = null;
+    const hide = () => { pop.hidden = true; owner?.classList.remove('open'); owner = null; };
+    const show = button => {
+      if (owner === button) { hide(); return; }
+      hide();
+      owner = button;
+      button.classList.add('open');
+      pop.textContent = button.dataset.hint || '';
+      pop.hidden = false;
+      const r = button.getBoundingClientRect();
+      const w = Math.min(300, window.innerWidth - 24);
+      pop.style.width = `${w}px`;
+      pop.style.left = `${Math.max(12, Math.min(window.innerWidth - w - 12, r.left + r.width / 2 - w / 2))}px`;
+      const above = r.top - pop.offsetHeight - 10;
+      pop.style.top = `${above > 8 ? above : r.bottom + 10}px`;
+    };
+    const hover = () => window.matchMedia?.('(hover: hover)').matches;
+    document.querySelectorAll('.hint-btn').forEach(button => {
+      button.addEventListener('click', event => { event.stopPropagation(); show(button); });
+      button.addEventListener('mouseenter', () => { if (hover() && owner !== button) show(button); });
+      button.addEventListener('mouseleave', () => { if (hover() && owner === button) hide(); });
+    });
+    document.addEventListener('pointerdown', event => { if (owner && !event.target.closest('.hint-btn')) hide(); });
+    window.addEventListener('scroll', hide, { passive: true });
+    window.addEventListener('resize', hide);
+  }
+
+  function bindFullscreen() {
+    if (!els.fullscreenBtn) return;
+    const root = document.documentElement;
+    const supported = Boolean(root.requestFullscreen && document.fullscreenEnabled);
+    els.fullscreenBtn.hidden = !supported;
+    if (!supported) return;
+    els.fullscreenBtn.addEventListener('click', () => {
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+      else root.requestFullscreen({ navigationUI: 'hide' }).catch(() => showToast('Full screen is not available here.', 'warning'));
+    });
+    document.addEventListener('fullscreenchange', () => {
+      const on = Boolean(document.fullscreenElement);
+      els.fullscreenBtn.classList.toggle('active', on);
+      els.fullscreenBtn.setAttribute('aria-label', on ? 'Leave full screen' : 'Full screen');
+      els.fullscreenBtn.title = on ? 'Leave full screen' : 'Full screen: hide the system bars';
+      window.setTimeout(fitTabletStage, 120);
+    });
   }
 
   async function init() {

@@ -82,8 +82,9 @@
             <img src="app-files/kofi-logo.webp" alt="" aria-hidden="true" />
             <span>Donate</span>
           </a>
-          <button class="icon-btn help-tour-btn" id="helpTourBtn" type="button" aria-label="Open app walkthrough" title="Help and walkthrough">?</button>
+          <button class="soft-btn compact tour-btn" id="helpTourBtn" type="button" aria-label="Open app walkthrough" title="Tour: help and walkthrough"><b class="tour-q" aria-hidden="true">?</b><span>Tour</span></button>
           <button class="soft-btn compact install-btn" id="installBtn" type="button" aria-label="Install the app" title="Install as an app" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7.5 10.5L12 15l4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>Install</span></button>
+          <button class="soft-btn compact fullscreen-btn" id="fullscreenBtn" type="button" aria-label="Full screen" title="Full screen: hide the system bars"><svg class="fs-enter" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><svg class="fs-exit" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg></button>
           <button class="soft-btn compact" id="editBtn">Edit song</button>
           <button class="soft-btn compact" id="settingsBtn">My Drum</button>
           <button class="icon-btn mobile-view-toggle" id="mobileViewToggleBtn" type="button" data-view="radial" aria-label="Switch display to Falling lanes" title="Switch to Falling lanes">
@@ -142,6 +143,12 @@
               <div class="tape-judge" id="noteTapeJudge"></div>
             </div>
             <div class="stage-song-name" id="stageSongName" aria-hidden="true"></div>
+            <div class="stage-dock" id="stageDock" role="group" aria-label="Play controls">
+              <button class="dock-btn" id="dockLoopBtn" type="button" aria-label="Loop song" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"></path><path d="M3 11V9a4 4 0 0 1 4-4h13"></path><path d="M7 22l-3-3 3-3"></path><path d="M21 13v2a4 4 0 0 1-4 4H4"></path></svg></button>
+              <button class="dock-btn dock-play" id="dockPlayBtn" type="button" aria-label="Play"><span class="play-icon" aria-hidden="true"></span></button>
+              <button class="dock-btn" id="dockMetronomeBtn" type="button" aria-label="Metronome" aria-pressed="false"><span class="metronome-icon" aria-hidden="true"><span class="metronome-body"></span><span class="metronome-arm"></span></span></button>
+            </div>
+            <button class="speed-cycle-btn" id="speedCycleBtn" type="button" aria-label="Speed: tap to slow down" title="Tap to change the speed"><small>Speed</small><b id="speedCycleValue">1×</b></button>
             <div class="stage-judge" id="stageJudge" aria-hidden="true"></div>
             <div class="stage-overlay top-left">
               <span id="totalNotesLabel">0 notes total</span>
@@ -190,7 +197,8 @@
               <button class="mini-loop-btn accent" id="abLoopBtn" type="button" aria-pressed="false" disabled>Loop A-B</button>
               <button class="mini-loop-btn clear" id="clearABBtn" type="button" disabled>Clear</button>
             </div>
-            <span class="ab-loop-status" id="abLoopStatus">Set A and B from the timeline to practise a section.</span>
+            <button class="hint-btn" type="button" data-hint="Loop a tricky part: play to where it starts and tap Set A, play on and tap Set B, then Loop A-B repeats just that part." aria-label="How the A-B loop works">?</button>
+            <span class="ab-loop-status" id="abLoopStatus"></span>
           </div>
 
           <div class="transport">
@@ -213,8 +221,8 @@
           </div>
 
           <div class="speed-row">
-            <label>
-              Speed
+            <div class="speed-control">
+              <label for="speedSelect">Speed</label>
               <select id="speedSelect" class="speed-select">
                 <option value="0.25">0.25×</option>
                 <option value="0.5">0.5×</option>
@@ -223,17 +231,20 @@
                 <option value="1.25">1.25×</option>
                 <option value="1.5">1.5×</option>
               </select>
-            </label>
-            <label class="toggle-label">
-              <input id="countInToggle" type="checkbox" checked />
-              <span>Count-in</span>
-            </label>
-            <button class="mic-toggle" id="micBtn" type="button" aria-pressed="false">
-              <svg class="mic-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path><path d="M8.6 21h6.8"></path></svg>
-              Microphone off
-            </button>
-            <span class="mic-status" id="micStatus" aria-live="polite">Use in Practice or Wait mode</span>
-            <p id="modeHint">Listen and watch the notes.</p>
+            </div>
+            <div class="speed-row-tail">
+              <label class="toggle-label">
+                <input id="countInToggle" type="checkbox" checked />
+                <span>Count-in</span>
+              </label>
+              <button class="mic-toggle" id="micBtn" type="button" aria-pressed="false">
+                <svg class="mic-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path><path d="M8.6 21h6.8"></path></svg>
+                Microphone off
+              </button>
+              <button class="hint-btn" type="button" data-hint="Turn the microphone on to play your real drum: the app hears which note you strike. It works in Practice, Wait for note and Tuner. Listen never uses it." aria-label="About the microphone">?</button>
+              <span class="mic-status" id="micStatus" aria-live="polite"></span>
+            </div>
+            <p id="modeHint">Listen and watch the notes, nothing is scored.</p>
           </div>
         </div>
 
@@ -748,6 +759,11 @@
   </dialog>
 
 
+  <button class="sound-wake" id="soundWakeBtn" type="button" hidden>
+    <span class="sound-wake-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor" fill-opacity=".18"></path><path class="w1" d="M16.5 8.5a5 5 0 0 1 0 7"></path><path class="w2" d="M19 6a8.5 8.5 0 0 1 0 12"></path></svg></span>
+    <span class="sound-wake-text"><b>Tap to wake up the sound ✨</b><small>…or touch any note and hear it sing</small></span>
+  </button>
+  <div class="hint-pop" id="hintPop" role="tooltip" hidden></div>
   <dialog class="dialog install-dialog" id="installDialog">
     <div class="install-card">
       <h2>Install Ethereal Drum</h2>

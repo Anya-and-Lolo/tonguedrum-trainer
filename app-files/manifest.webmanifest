@@ -1,6 +1,6 @@
 {
   "name": "Ethereal Drum Trainer",
-  "short_name": "Drum Trainer",
+  "short_name": "Tongue Drum Trainer",
   "description": "A configurable tongue drum song trainer with real-time note guidance.",
   "start_url": "../index.html",
   "scope": "../",

@@ -1,4 +1,6 @@
-/* Ethereal Drum Trainer Community submission receiver.
+/* Ethereal Drum + Ethereal Handpan Community submission receiver.
+ * One script serves both apps: tongue drum songs arrive as .drumsong files and
+ * handpan songs as .handsong files (their names start with "handpan-").
  * Paste this entire file into a new Google Apps Script project.
  * The review-folder ID is already configured below.
  * After editing an existing web app, deploy a new version from
@@ -23,7 +25,7 @@ function doGet(event) {
     return ContentService.createTextOutput(javascript)
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
-  return HtmlService.createHtmlOutput('Ethereal Drum Community Upload is ready.');
+  return HtmlService.createHtmlOutput('Ethereal Drum / Ethereal Handpan Community Upload is ready.');
 }
 
 function doPost(event) {
@@ -56,7 +58,8 @@ function doPost(event) {
       const folder = DriveApp.getFolderById(SUBMISSION_FOLDER_ID);
       const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyyMMdd-HHmmss');
       const unique = Utilities.getUuid().slice(0, 8);
-      const filename = `${safeFilename_(document.song.title)}-${timestamp}-${unique}.drumsong`;
+      const handpan = document.format === 'ethereal-handpan-song-v1';
+      const filename = `${handpan ? 'handpan-' : ''}${safeFilename_(document.song.title)}-${timestamp}-${unique}.${handpan ? 'handsong' : 'drumsong'}`;
       folder.createFile(filename, JSON.stringify(document, null, 2), MimeType.PLAIN_TEXT);
       cache.put(duplicateKey, '1', DUPLICATE_GUARD_SECONDS);
     } finally {
@@ -87,6 +90,10 @@ function saveUploadStatus_(nonce, status) {
 }
 
 function validateSongDocument_(document) {
+  if (document && document.format === 'ethereal-handpan-song-v1') {
+    validateHandpanSong_(document);
+    return;
+  }
   if (!document || document.format !== 'ethereal-drum-song-v3') throw new Error('Invalid format');
   const song = document.song;
   if (!song || typeof song !== 'object') throw new Error('Missing song');
@@ -110,9 +117,32 @@ function validateSongDocument_(document) {
   };
 }
 
+function validateHandpanSong_(document) {
+  const song = document.song;
+  if (!song || typeof song !== 'object') throw new Error('Missing song');
+  const title = String(song.title || '').trim();
+  const sequence = String(song.sequence || '').trim();
+  const bpm = Number(song.bpm);
+  const beatsPerBar = Math.round(Number(song.beatsPerBar) || 4);
+  if (!title || title.length > 120) throw new Error('Invalid title');
+  if (!sequence || sequence.length > 50000) throw new Error('Invalid sequence');
+  if (!Number.isFinite(bpm) || bpm < 20 || bpm > 260) throw new Error('Invalid tempo');
+  if (beatsPerBar < 1 || beatsPerBar > 12) throw new Error('Invalid beats');
+  document.song = {
+    title: title,
+    artist: String(song.artist || '').trim().slice(0, 80),
+    bpm: bpm,
+    beatsPerBar: beatsPerBar,
+    scale: String(song.scale || 'D Kurd').slice(0, 40),
+    sequence: sequence,
+    folder: 'community'
+  };
+}
+
 function songFingerprint_(document) {
   const song = document.song || {};
   const canonical = [
+    String(document.format || ''),
     String(song.title || '').trim(),
     String(Number(song.bpm) || ''),
     String(song.sequence || '').trim(),

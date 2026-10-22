@@ -1,4 +1,4 @@
-const CACHE = 'ethereal-drum-trainer-v82-runtime-warmup';
+const CACHE = 'ethereal-drum-trainer-v85-fit';
 const SHELL = [
   './',
   './index.html',
@@ -7,7 +7,12 @@ const SHELL = [
   './app-files/community-upload-config.js',
   './app-files/demo-catalog.js',
   './app-files/manifest.webmanifest',
-  './app-files/kofi-logo.webp'
+  './app-files/kofi-logo.webp',
+  './app-files/icon-192.png',
+  './app-files/icon-512.png',
+  './app-files/icon-maskable-512.png',
+  './app-files/fonts/fredoka-latin-600-normal.woff2',
+  './app-files/fonts/fredoka-latin-700-normal.woff2'
 ];
 
 self.addEventListener('install', event => {
