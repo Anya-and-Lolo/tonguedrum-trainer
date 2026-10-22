@@ -7,12 +7,14 @@
   <meta name="description" content="A configurable tongue drum song trainer with centre-drum guidance and optional microphone note recognition." />
   <title>Ethereal Drum Trainer</title>
   <link rel="manifest" href="app-files/manifest.webmanifest" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='-1.05 -1.05 2.1 2.1' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='fP' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23c4b5fd'/%3E%3Cstop offset='1' stop-color='%237665d8'/%3E%3C/linearGradient%3E%3ClinearGradient id='fG' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ccfbf1'/%3E%3Cstop offset='1' stop-color='%232dd4bf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle r='1' fill='%23111827' stroke='%238b7cf0' stroke-opacity='.6' stroke-width='0.06'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(0)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(60)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(120)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(180)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(240)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(300)'/%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="app-files/icon-192.png" />
   <link rel="stylesheet" href="app-files/styles.css" />
 </head>
 <body class="app-loading">
   <div class="startup-loader" id="startupLoader" role="status" aria-live="polite" aria-label="Preparing Ethereal Drum Trainer">
     <div class="startup-loader-card">
-      <div class="startup-loader-mark" aria-hidden="true"><i></i><i></i><i></i></div>
+      <div class="startup-loader-mark td-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <p class="startup-loader-brand">ETHEREAL DRUM</p>
       <h1>Get ready to drum</h1>
       <p class="startup-loader-status" id="startupLoaderStatus">Loading your instrument</p>
@@ -23,7 +25,7 @@
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand-row">
-        <div class="brand-mark" aria-hidden="true">◉</div>
+        <div class="brand-mark td-brand" aria-hidden="true"><svg class="td-logo-svg" viewBox="-1.05 -1.05 2.1 2.1" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="sbP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c4b5fd"/><stop offset="1" stop-color="#7665d8"/></linearGradient><linearGradient id="sbG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ccfbf1"/><stop offset="1" stop-color="#2dd4bf"/></linearGradient></defs><circle r="1" fill="#111827" stroke="#8b7cf0" stroke-opacity=".6" stroke-width="0.035"/><circle r=".77" fill="none" stroke="#5eead4" stroke-opacity=".3" stroke-width=".03"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbP)" transform="rotate(0)"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbG)" transform="rotate(60)"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbP)" transform="rotate(120)"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbG)" transform="rotate(180)"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbP)" transform="rotate(240)"/><rect x="-0.120" y="-0.800" width="0.24" height="0.56" rx="0.120" fill="url(#sbG)" transform="rotate(300)"/></svg></div>
         <div>
           <h1>Ethereal Drum</h1>
           <p>Song trainer</p>
@@ -34,6 +36,7 @@
       <div class="sidebar-actions">
         <button class="primary-btn" id="newSongBtn">＋ New song</button>
         <button class="soft-btn" id="importBtn">Import song</button>
+        <button class="soft-btn" id="scanSheetBtn">Scan sheet image</button>
         <button class="library-btn" id="libraryBtn" type="button">
           <span><b aria-hidden="true">♫</b> Community songs</span>
           <em id="libraryCountBadge">0</em>
@@ -45,6 +48,12 @@
         <span>Search songs</span>
         <input id="songSearch" type="search" placeholder="Find a song..." />
       </label>
+      <div class="difficulty-filter" id="difficultyFilter" role="group" aria-label="Filter songs by difficulty">
+        <button type="button" data-level="all" class="active">All</button>
+        <button type="button" data-level="easy">Easy</button>
+        <button type="button" data-level="medium">Medium</button>
+        <button type="button" data-level="hard">Hard</button>
+      </div>
 
       <div class="song-list" id="songList" aria-live="polite"></div>
 
@@ -74,6 +83,7 @@
             <span>Donate</span>
           </a>
           <button class="icon-btn help-tour-btn" id="helpTourBtn" type="button" aria-label="Open app walkthrough" title="Help and walkthrough">?</button>
+          <button class="soft-btn compact install-btn" id="installBtn" type="button" aria-label="Install the app" title="Install as an app" hidden><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11"></path><path d="M7.5 10.5L12 15l4.5-4.5"></path><path d="M5 19.5h14"></path></svg><span>Install</span></button>
           <button class="soft-btn compact" id="editBtn">Edit song</button>
           <button class="soft-btn compact" id="settingsBtn">My Drum</button>
           <button class="icon-btn mobile-view-toggle" id="mobileViewToggleBtn" type="button" data-view="radial" aria-label="Switch display to Falling lanes" title="Switch to Falling lanes">
@@ -93,11 +103,13 @@
         <div class="trainer-card">
           <div class="trainer-toolbar">
             <div class="toolbar-controls">
-              <div class="segmented" role="group" aria-label="Training mode">
-                <button class="segment active" data-mode="demo">Demo</button>
+              <div class="segmented mode-segmented" role="group" aria-label="Training mode">
+                <button class="segment active" data-mode="demo">Listen</button>
                 <button class="segment" data-mode="practice">Practice</button>
-                <button class="segment" data-mode="wait">Wait for note</button>
-                <button class="segment" data-mode="tuner">Tuner</button>
+                <button class="segment tuner-segment" data-mode="tuner">Tuner</button>
+              </div>
+              <div class="practice-options" id="practiceOptions">
+                <label class="toggle-label wait-toggle" id="waitToggleLabel"><input type="checkbox" id="waitToggle" /><span>Wait for note</span></label>
               </div>
               <div class="display-control">
                 <span>Display</span>
@@ -122,6 +134,15 @@
             </button>
             <div class="stage-drum-wrap" id="stageDrumWrap" aria-label="Interactive centre drum"></div>
             <div class="high-drum-wrap" id="highDrumWrap" aria-label="High 8-note companion drum"></div>
+            <div class="note-tape" id="noteTape" aria-hidden="true" hidden>
+              <div class="tape-window">
+                <div class="tape-playhead"></div>
+                <div class="tape-track" id="noteTapeTrack"></div>
+              </div>
+              <div class="tape-judge" id="noteTapeJudge"></div>
+            </div>
+            <div class="stage-song-name" id="stageSongName" aria-hidden="true"></div>
+            <div class="stage-judge" id="stageJudge" aria-hidden="true"></div>
             <div class="stage-overlay top-left">
               <span id="totalNotesLabel">0 notes total</span>
               <span id="tempoLabel">72 BPM</span>
@@ -181,14 +202,21 @@
                 <path d="M21 13v2a4 4 0 0 1-4 4H4"></path>
               </svg>
             </button>
+            <button class="round-btn small" id="stopBtn" aria-label="Back to start" title="Back to start">
+              <svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true"><rect x="5.5" y="5.5" width="13" height="13" rx="2.6" fill="currentColor"></rect></svg>
+            </button>
             <button class="round-btn play" id="playBtn" aria-label="Play">▶</button>
-            <button class="round-btn small" id="metronomeBtn" aria-label="Toggle metronome"><span class="metronome-icon" aria-hidden="true"><span class="metronome-body"></span><span class="metronome-arm"></span></span></button>
+            <button class="round-btn small" id="metronomeBtn" aria-label="Toggle metronome" title="Metronome"><span class="metronome-icon" aria-hidden="true"><span class="metronome-body"></span><span class="metronome-arm"></span></span></button>
+            <button class="round-btn small" id="guideBtn" aria-label="Song sound" aria-pressed="false" title="Song sound in Practice and Wait for note">
+              <svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z"></path><path class="sound-wave" d="M16.5 8.5a5 5 0 0 1 0 7"></path><path class="sound-wave" d="M19 6a8.5 8.5 0 0 1 0 12"></path><path class="sound-slash" d="M16 9.5l5 5M21 9.5l-5 5"></path></svg>
+            </button>
           </div>
 
           <div class="speed-row">
             <label>
               Speed
-              <select id="speedSelect">
+              <select id="speedSelect" class="speed-select">
+                <option value="0.25">0.25×</option>
                 <option value="0.5">0.5×</option>
                 <option value="0.75">0.75×</option>
                 <option value="1" selected>1×</option>
@@ -323,12 +351,14 @@
               <p><span class="hint-keys"><kbd>'</kbd></span><span>After a note: higher octave</span></p>
               <p><span class="hint-keys"><kbd>.</kbd></span><span>After a note: lower octave</span></p>
               <p><span class="hint-keys"><kbd>+</kbd></span><span>Between notes: play together</span></p>
-              <p><span class="hint-keys"><kbd>0</kbd><kbd>-</kbd></span><span>Add a rest</span></p>
+              <p><span class="hint-keys"><kbd>0</kbd></span><span>Add a rest: silence for one beat</span></p>
+              <p><span class="hint-keys"><kbd>-</kbd></span><span>After a note: hold it one beat longer</span></p>
               <p><span class="hint-keys"><kbd>|</kbd></span><span>Add a bar line</span></p>
               <p><span class="hint-keys"><kbd>_</kbd></span><span>After a note: quick</span></p>
               <p><span class="hint-keys"><kbd>=</kbd></span><span>After a note: very quick</span></p>
+              <p><span class="hint-keys"><kbd>Ctrl</kbd><kbd>V</kbd></span><span>Paste a copied song back, dashes and all</span></p>
             </div>
-            <textarea id="sequenceInput" rows="5" wrap="soft" spellcheck="false" placeholder="1 1 3 | 5 5 3 - | 2+4 1 -"></textarea>
+            <textarea id="sequenceInput" rows="5" wrap="soft" spellcheck="false" placeholder="1 1 3 | 5 5 3 - | 2+4 1 0"></textarea>
           </div>
 
           <section class="timing-editor" id="timingEditor" hidden>
@@ -344,6 +374,8 @@
                 <button type="button" data-duration="1" title="Quarter note: one note fills one regular beat" disabled>Regular</button>
                 <button type="button" data-duration="2" title="Half note: the note lasts for two regular beats" disabled>Half note</button>
                 <button type="button" data-duration="4" title="Whole note: the note lasts for four regular beats" disabled>Whole note</button>
+                <button type="button" class="timing-dot-btn" id="timingDotBtn" aria-pressed="false" title="Dotted note: the dot to the right makes the note half as long again" disabled>Dotted &middot;</button>
+                <button type="button" class="timing-tie-btn" id="timingTieBtn" aria-pressed="false" title="Draw an arc to the next note" disabled>&#8255; Arc</button>
               </div>
             </div>
             <div class="timing-sheet-wrap">
@@ -356,6 +388,7 @@
       <p class="helper-copy">
         Use the keyboard guide above or tap the compose controls. Line breaks are added automatically for readability.
       </p>
+      <p class="helper-copy quick-tip"><b>Tip</b> <strong>1+3</strong> plays those numbers together as a chord, and the sheet stacks them one above the other.</p>
 
       <div class="dialog-actions">
         <button type="submit" class="primary-btn" id="saveSongBtn">Save song</button>
@@ -371,7 +404,7 @@
     <form method="dialog">
       <div class="dialog-head">
         <div class="editor-title-lockup">
-          <p class="editor-kicker" aria-label="Song Builder"><span>SONG</span><span>BUILDER</span></p>
+          <p class="editor-kicker" aria-label="Jianpu guide"><span>JIANPU</span><span>GUIDE</span></p>
           <h2>Numbers and note guide</h2>
         </div>
         <button type="button" class="icon-btn" data-close-dialog="songGuideDialog" aria-label="Close">×</button>
@@ -583,7 +616,7 @@
         </div>
         <section class="jianpu-guide"><div class="note-guide-head">
 <strong>Jianpu quick guide</strong>
-<span>How the sheet works in this app</span>
+<span>How to read numbered music</span>
 </div><div class="jianpu-extra-copy">
 <article class="jianpu-copy-block">
 <h4>What is Jianpu?</h4>
@@ -597,6 +630,7 @@
 <li><strong>6</strong> = La</li>
 <li><strong>7</strong> = Ti</li>
 </ul>
+<p><strong>0</strong> is a rest: stay silent for one beat. Several <strong>0</strong>s in a row make a longer silence.</p>
 </article>
 <article class="jianpu-copy-block">
 <h4>Jianpu in different keys</h4>
@@ -610,6 +644,7 @@
 </div><div class="jianpu-guide-grid">
 <article class="jianpu-tip-card">
 <strong>Rhythm</strong>
+<p class="jianpu-tip-note jianpu-tip-intro">In Jianpu a plain number lasts one beat. Lines underneath make it shorter, dashes after it make it longer.</p>
 <div class="jianpu-timing-row">
 <span class="jianpu-sample-token">
 <span class="jianpu-sample-number">5</span>
@@ -645,7 +680,7 @@
 </span>
 <span class="jianpu-tip-text"><b>Whole note</b><small>Three dashes to the right = four beats</small></span>
 </div>
-<p class="jianpu-tip-note">Underlines make notes shorter. Extension dashes to the right make notes longer.</p>
+
 </article>
 <article class="jianpu-tip-card">
 <strong>Octave dots</strong>
@@ -655,9 +690,23 @@
 <span class="jianpu-octave-chip"><b class="oct-up">1</b><small>High</small></span>
 <span class="jianpu-octave-chip"><b class="oct-up oct-up-double">1</b><small>Very high</small></span>
 </div>
-<p class="jianpu-tip-note">A dot above raises the number by one octave. A dot below lowers it by one octave.</p>
+<p class="jianpu-tip-note">A dot above raises the number by one octave.<br>A dot below lowers it by one octave.</p>
+<div class="jianpu-tip-divider"></div>
+<strong class="jianpu-subheading">Beats, bars and rests</strong>
+<p class="jianpu-tip-note">Music is counted in steady <b>beats</b>, like tapping your foot. A bar line <b>|</b> gathers a few beats into a <b>bar</b>, usually four.</p>
+<p class="jianpu-tip-note">Underlines only join notes that share the same beat. So four quick notes are drawn as <b>two joined pairs</b>, not one long line. The break shows you where the next foot-tap lands.</p>
+<div class="jianpu-beat-demo" aria-hidden="true">
+<span class="jianpu-beat-group"><i>6</i><i>3</i></span>
+<span class="jianpu-beat-group"><i>3</i><i>6</i></span>
+<span class="jianpu-beat-bar"></span>
+<span class="jianpu-beat-group"><i>2</i><i>1</i></span>
+<span class="jianpu-beat-bar"></span>
+<span class="jianpu-beat-group"><i>7</i><i>2</i></span>
+<span class="jianpu-beat-group"><i>1</i><i>7</i></span>
+</div>
+<p class="jianpu-tip-note jianpu-beat-caption">One underline per beat. Tap your foot once for each: <b>63</b>, <b>36</b>, <b>21</b>, <b>72</b>, <b>17</b>. The tall lines are bar lines.</p>
 </article>
-</div><p class="note-guide-caption">On the sheet, <strong>0</strong> means a rest, and longer rests repeat 0. In the song data, <strong>+</strong> means play the numbers together as a chord, and the sheet shows those simultaneous notes stacked one above another.</p></section>
+</div></section>
         <div class="note-guide">
           <div class="note-guide-head">
             <strong>D and C major note guide</strong>
@@ -699,8 +748,17 @@
   </dialog>
 
 
+  <dialog class="dialog install-dialog" id="installDialog">
+    <div class="install-card">
+      <h2>Install Ethereal Drum</h2>
+      <p id="installHelpText">Open the browser menu and choose Install app or Add to Home screen.</p>
+      <button type="button" class="primary-btn" data-close-dialog="installDialog">Got it</button>
+    </div>
+  </dialog>
+
   <dialog class="dialog result-dialog" id="resultDialog">
     <div class="result-card">
+      <canvas class="result-sparkles" id="resultSparkles" aria-hidden="true"></canvas>
       <div class="result-icon" aria-hidden="true">✓</div>
       <p class="eyebrow">SESSION COMPLETE</p>
       <h2 id="resultTitle">Song complete</h2>
@@ -720,9 +778,42 @@
         <button type="button" class="primary-btn" id="practiceMistakesBtn">Practice mistakes</button>
         <button type="button" class="soft-btn" id="resultNextBtn">Next in list</button>
       </div>
-      <button type="button" class="result-close" data-close-dialog="resultDialog" aria-label="Close results">×</button>
+      <button type="button" class="result-close" data-close-dialog="resultDialog" aria-label="Close results"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"></path></svg></button>
     </div>
   </dialog>
+  <dialog id="scanDialog" class="dialog large-dialog">
+    <form method="dialog" id="scanForm">
+      <div class="dialog-head">
+        <div class="editor-title-lockup">
+          <p class="editor-kicker" aria-label="Jianpu scanner"><span>JIANPU</span><span>SCANNER</span></p>
+          <h2>Scan a sheet image</h2>
+        </div>
+        <button type="button" class="icon-btn" data-close-dialog="scanDialog" aria-label="Close">&times;</button>
+      </div>
+
+      <p class="helper-copy">Beta. Drop a clear, straight image of numbered notation. The scanner finds the rows and the numbers, then asks you to name each shape it found once, so it works with any font.</p>
+
+      <label class="scan-drop" id="scanDrop">
+        <input type="file" id="scanFile" accept="image/*" hidden>
+        <b>Drop an image here</b>
+        <span>or tap to choose a file</span>
+      </label>
+
+      <div class="scan-stage" id="scanStage" hidden>
+        <div class="scan-preview"><canvas id="scanCanvas"></canvas></div>
+        <p class="scan-status" id="scanStatus"></p>
+        <div class="scan-groups" id="scanGroups"></div>
+      </div>
+
+      <div class="dialog-actions">
+        <button type="button" class="primary-btn" id="scanApplyBtn" disabled>Use these notes</button>
+        <div class="dialog-action-secondary">
+          <button type="button" class="soft-btn" data-close-dialog="scanDialog">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
 
   <div class="colour-popover" id="colourPopover" popover="manual" role="dialog" aria-label="Choose a tongue color"></div>
 

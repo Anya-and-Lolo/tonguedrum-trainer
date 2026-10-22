@@ -4,6 +4,8 @@
   const STORAGE_SONGS = 'ethereal-drum-songs-v1';
   const STORAGE_INSTRUMENT = 'ethereal-drum-instrument-v1';
   const STORAGE_VIEW = 'ethereal-drum-view-v2';
+  const STORAGE_GUIDE = 'ethereal-drum-song-sound-v1';
+  const STORAGE_WAIT = 'ethereal-drum-wait-pref-v1';
   const STORAGE_EDITOR_PITCH_NAMES = 'ethereal-drum-editor-pitch-names-v1';
   const STORAGE_EDITOR_EXPRESSIVE_TIMING = 'ethereal-drum-editor-expressive-timing-v1';
   const STORAGE_EDITOR_DRAFT = 'ethereal-drum-editor-draft-v1';
@@ -101,7 +103,7 @@
     {
       target: '#helpTourBtn',
       title: 'Help when you need it',
-      text: 'Click ? in Demo to replay this tour. In Practice, Wait for note, or Tuner, the same button replays help for that mode.'
+      text: 'Click ? in Listen to replay this tour. In Practice, Wait for note, or Tuner, the same button replays help for that mode.'
     }
   ];
   const MODE_WALKTHROUGH_STEPS = {
@@ -124,9 +126,9 @@
     ],
     wait: [
       {
-        target: '[data-mode="wait"]',
+        target: '#waitToggleLabel',
         title: 'Wait for note mode',
-        text: 'Use this mode when you want to learn slowly. The song stops at each step until you play the correct note.'
+        text: 'Tick Wait for note in Practice when you want to learn slowly. The song stops at each step until you play the correct note.'
       },
       {
         target: '#noteStage',
@@ -379,10 +381,20 @@
   // from digit to digit. Split the mark off the label so it can be drawn as a centred dot.
   // `-` stays the rest so every saved song keeps its meaning; `0` is accepted as an
   // easier-to-type alias, and is what the numbered sheet has always drawn for a rest.
+  // Jianpu keeps these apart and so do we. A 0 is a rest: nothing sounds for that beat. A
+  // dash holds the note before it for another beat instead of striking it again. Neither
+  // is struck, which is what isSilentCore covers.
   function isRestCore(core) {
-    return core === '-' || core === '0';
+    return core === '0';
   }
 
+  function isHoldCore(core) {
+    return core === '-';
+  }
+
+  function isSilentCore(core) {
+    return isRestCore(core) || isHoldCore(core);
+  }
   function splitOctaveMark(label) {
     const text = String(label ?? '');
     const upCount = [...text].filter(character => character === DOT_ABOVE).length;
@@ -695,6 +707,7 @@
     editorTimingSelectionIndex: -1,
     editorTimingSelection: [],
     editorRangeSelectArmed: false,
+    scanResult: null,
     draftSaveTimer: 0,
     expressiveTimingEnabled: false,
     showPitchNames: false,
@@ -766,11 +779,13 @@
     editorDialog: $('editorDialog'), editorForm: $('editorForm'), editorHeading: $('editorHeading'), songTitleInput: $('songTitleInput'), songBpmInput: $('songBpmInput'),
     sequenceInput: $('sequenceInput'), sequenceBackdrop: $('sequenceBackdrop'), copySequenceBtn: $('copySequenceBtn'), exportSheetBtn: $('exportSheetBtn'),
     printSheet: $('printSheet'),
-    draftNotice: $('draftNotice'), draftNoticeText: $('draftNoticeText'), discardDraftBtn: $('discardDraftBtn'), songScaleSelect: $('songScaleSelect'), miniPads: $('miniPads'), expressiveTimingToggle: $('expressiveTimingToggle'), timingEditor: $('timingEditor'), timingTokenStrip: $('timingTokenStrip'), timingChoiceGroup: $('timingChoiceGroup'), timingRangeBtn: $('timingRangeBtn'), selectedTimingLabel: $('selectedTimingLabel'), appendChordBtn: $('appendChordBtn'), appendRestBtn: $('appendRestBtn'), appendBarBtn: $('appendBarBtn'), clearSequenceBtn: $('clearSequenceBtn'), showPitchNamesToggle: $('showPitchNamesToggle'), saveSongBtn: $('saveSongBtn'), deleteEditorBtn: $('deleteEditorBtn'), editorGuideBtn: $('editorGuideBtn'), songGuideDialog: $('songGuideDialog'), songGuideContent: $('songGuideContent'), communityDialog: $('communityDialog'), communitySelection: $('communitySelection'), submitCommunityBtn: $('submitCommunityBtn'), communityUploadProgress: $('communityUploadProgress'), communityUploadStatus: $('communityUploadStatus'), communityUploadPercent: $('communityUploadPercent'), communityProgressTrack: $('communityProgressTrack'), communityProgressFill: $('communityProgressFill'),
+    draftNotice: $('draftNotice'), draftNoticeText: $('draftNoticeText'), discardDraftBtn: $('discardDraftBtn'), songScaleSelect: $('songScaleSelect'), miniPads: $('miniPads'), expressiveTimingToggle: $('expressiveTimingToggle'), timingEditor: $('timingEditor'), timingTokenStrip: $('timingTokenStrip'), timingChoiceGroup: $('timingChoiceGroup'), timingTieBtn: $('timingTieBtn'), timingDotBtn: $('timingDotBtn'), timingRangeBtn: $('timingRangeBtn'), selectedTimingLabel: $('selectedTimingLabel'), appendChordBtn: $('appendChordBtn'), appendRestBtn: $('appendRestBtn'), appendBarBtn: $('appendBarBtn'), clearSequenceBtn: $('clearSequenceBtn'), showPitchNamesToggle: $('showPitchNamesToggle'), saveSongBtn: $('saveSongBtn'), deleteEditorBtn: $('deleteEditorBtn'), editorGuideBtn: $('editorGuideBtn'), songGuideDialog: $('songGuideDialog'), songGuideContent: $('songGuideContent'), communityDialog: $('communityDialog'), communitySelection: $('communitySelection'), submitCommunityBtn: $('submitCommunityBtn'), communityUploadProgress: $('communityUploadProgress'), communityUploadStatus: $('communityUploadStatus'), communityUploadPercent: $('communityUploadPercent'), communityProgressTrack: $('communityProgressTrack'), communityProgressFill: $('communityProgressFill'),
     songLibraryDialog: $('songLibraryDialog'), libraryTabAll: $('libraryTabAll'), libraryTabEasy: $('libraryTabEasy'), libraryTabMedium: $('libraryTabMedium'), libraryTabHard: $('libraryTabHard'), libraryTabExpert: $('libraryTabExpert'), librarySearch: $('librarySearch'), libraryGrid: $('libraryGrid'), libraryEmpty: $('libraryEmpty'), libraryCommunityBanner: $('libraryCommunityBanner'), libraryCommunityInfoBtn: $('libraryCommunityInfoBtn'), communitySongsCount: $('communitySongsCount'), communityEasyCount: $('communityEasyCount'), communityMediumCount: $('communityMediumCount'), communityHardCount: $('communityHardCount'), communityExpertCount: $('communityExpertCount'),
     myDrumDialog: $('myDrumDialog'), myDrumTitle: $('myDrumTitle'), myDrumBadges: $('myDrumBadges'), myDrumPreview: $('myDrumPreview'), myDrumNoteCount: $('myDrumNoteCount'), myDrumNoteList: $('myDrumNoteList'), myDrumCompanion: $('myDrumCompanion'), myDrumCompanionPreview: $('myDrumCompanionPreview'), exportInstrumentBtn: $('exportInstrumentBtn'), exportInstrumentFromSettingsBtn: $('exportInstrumentFromSettingsBtn'), importInstrumentBtn: $('importInstrumentBtn'), importInstrumentFile: $('importInstrumentFile'), editInstrumentBtn: $('editInstrumentBtn'),
     settingsDialog: $('settingsDialog'), settingsForm: $('settingsForm'), instrumentKeySelect: $('instrumentKeySelect'), scaleTypeSelect: $('scaleTypeSelect'), noteCountSelect: $('noteCountSelect'), rootOctaveSelect: $('rootOctaveSelect'), highDrumOption: $('highDrumOption'), highDrumAvailability: $('highDrumAvailability'), highDrumToggle: $('highDrumToggle'), highDrumAlwaysToggle: $('highDrumAlwaysToggle'), companionTuningSection: $('companionTuningSection'), companionTuningGrid: $('companionTuningGrid'), colourPopover: $('colourPopover'), pitchInfoBtn: $('pitchInfoBtn'), pitchInfo: $('pitchInfo'), noteGuideBody: $('noteGuideBody'), noteGuideOctave: $('noteGuideOctave'), tuningGrid: $('tuningGrid'), saveSettingsBtn: $('saveSettingsBtn'),
-    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'),
+    scanSheetBtn: $('scanSheetBtn'), scanDialog: $('scanDialog'), scanDrop: $('scanDrop'), scanFile: $('scanFile'),
+    scanCanvas: $('scanCanvas'), scanStatus: $('scanStatus'), scanGroups: $('scanGroups'), scanApplyBtn: $('scanApplyBtn'), scanStage: $('scanStage'),
+    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'),
     tourOverlay: $('tourOverlay'), tourShadeTop: $('tourShadeTop'), tourShadeRight: $('tourShadeRight'), tourShadeBottom: $('tourShadeBottom'), tourShadeLeft: $('tourShadeLeft'), tourFocusRing: $('tourFocusRing'), tourCard: $('tourCard'), tourProgress: $('tourProgress'), tourTitle: $('tourTitle'), tourText: $('tourText'), tourSkipBtn: $('tourSkipBtn'), tourBackBtn: $('tourBackBtn'), tourNextBtn: $('tourNextBtn'), tourDontShowAgain: $('tourDontShowAgain'),
     tunerPanel: $('tunerPanel'), tunerLabel: $('tunerLabel'), tunerNoteName: $('tunerNoteName'), tunerCents: $('tunerCents'), tunerMeter: $('tunerMeter'), tunerNeedle: $('tunerNeedle'),
     resultDialog: $('resultDialog'), resultTitle: $('resultTitle'), resultSummary: $('resultSummary'), resultStats: $('resultStats'), resultHitValue: $('resultHitValue'), resultAccuracyValue: $('resultAccuracyValue'), resultStreakValue: $('resultStreakValue'), resultMistakes: $('resultMistakes'), resultRecommendation: $('resultRecommendation'), resultRecommendedBtn: $('resultRecommendedBtn'), resultReplayBtn: $('resultReplayBtn'), practiceMistakesBtn: $('practiceMistakesBtn'), resultNextBtn: $('resultNextBtn')
@@ -944,15 +959,20 @@
     return state.songs.find(s => s.id === state.selectedId) || state.songs[0];
   }
 
+  // A trailing ~ marks a tie: this note is held into the next one instead of being struck
+  // again. It is the only way to write a note that carries across a bar line.
   function timedTokenParts(token) {
-    const value = String(token || '').trim();
-    if (!value || value === '|') return { core: value, durationBeats: 0, valid: value === '|' };
+    let value = String(token || '').trim();
+    if (!value || value === '|') return { core: value, durationBeats: 0, tie: false, valid: value === '|' };
+    let tie = false;
+    if (value.endsWith('~')) { tie = true; value = value.slice(0, -1); }
     const match = value.match(/^(.*?)(?::([0-9]+(?:\.[0-9]+)?))?$/u);
-    if (!match || !match[1] || match[1].includes(':')) return { core: value, durationBeats: 1, valid: false };
+    if (!match || !match[1] || match[1].includes(':')) return { core: value, durationBeats: 1, tie, valid: false };
     const durationBeats = match[2] === undefined ? 1 : Number(match[2]);
     return {
       core: match[1],
       durationBeats,
+      tie,
       valid: Number.isFinite(durationBeats) && durationBeats >= 0.125 && durationBeats <= 16
     };
   }
@@ -961,19 +981,21 @@
     return Number(value).toFixed(3).replace(/\.?0+$/, '');
   }
 
-  function makeTimedToken(core, durationBeats = 1) {
+  function makeTimedToken(core, durationBeats = 1, tie = false) {
     const duration = Number(durationBeats);
-    return Math.abs(duration - 1) < 0.0001 ? core : `${core}:${durationText(duration)}`;
+    const base = Math.abs(duration - 1) < 0.0001 ? core : `${core}:${durationText(duration)}`;
+    return tie ? `${base}~` : base;
   }
 
   function timelineFromStoredSequence(sequence) {
     return sequenceInputItems(sequence).map(item => {
-      if (item.core === '|') return { core: '|', durationBeats: 0, lyric: '' };
+      if (item.core === '|') return { core: '|', durationBeats: 0, lyric: '', tie: false };
       const timed = timedTokenParts(item.core);
       return {
         core: timed.core,
         durationBeats: item.durationOverride ?? (timed.valid ? timed.durationBeats : 1),
-        lyric: ''
+        lyric: '',
+        tie: Boolean(timed.tie)
       };
     });
   }
@@ -1016,7 +1038,7 @@
       && cores[cores.length - 1 - suffix] === previous[previous.length - 1 - suffix].core) suffix += 1;
 
     state.editorTimeline = cores.map((core, index) => {
-      if (core === '|') return { core, durationBeats: 0, lyric: '' };
+      if (core === '|') return { core, durationBeats: 0, lyric: '', tie: false };
       const explicitDuration = inputItems[index].durationOverride;
 
       // A one-for-one pitch replacement keeps the rhythm and lyric attached to the same
@@ -1024,23 +1046,26 @@
       if (sameShape && previous[index] && previous[index].core !== '|') return {
         core,
         durationBeats: explicitDuration ?? previous[index].durationBeats,
-        lyric: previous[index].lyric || ''
+        lyric: previous[index].lyric || '',
+        tie: Boolean(previous[index].tie)
       };
 
       if (index < prefix) return {
         core,
         durationBeats: explicitDuration ?? previous[index].durationBeats,
-        lyric: previous[index].lyric || ''
+        lyric: previous[index].lyric || '',
+        tie: Boolean(previous[index].tie)
       };
       if (index >= cores.length - suffix) {
         const previousIndex = previous.length - (cores.length - index);
         return {
           core,
           durationBeats: explicitDuration ?? previous[previousIndex].durationBeats,
-          lyric: previous[previousIndex].lyric || ''
+          lyric: previous[previousIndex].lyric || '',
+          tie: Boolean(previous[previousIndex].tie)
         };
       }
-      return { core, durationBeats: explicitDuration ?? 1, lyric: '' };
+      return { core, durationBeats: explicitDuration ?? 1, lyric: '', tie: false };
     });
     if (state.editorTimingSelectionIndex >= state.editorTimeline.length
       || state.editorTimeline[state.editorTimingSelectionIndex]?.core === '|') {
@@ -1052,7 +1077,7 @@
     syncEditorTimelineFromCleanInput();
     return state.editorTimeline.map(item => item.core === '|'
       ? '|'
-      : makeTimedToken(item.core, item.durationBeats)).join(' ');
+      : makeTimedToken(item.core, item.durationBeats, item.tie)).join(' ');
   }
 
   function timingWord(durationBeats) {
@@ -1091,6 +1116,14 @@
     if (!els.sequenceBackdrop || !els.sequenceInput) return;
     const text = els.sequenceInput.value;
     const timeline = state.editorTimeline || [];
+    // Where each note falls in its bar, so beams can break on whole beats like the sheet.
+    const beatPositions = [];
+    let runningBeat = 0;
+    timeline.forEach((item, index) => {
+      if (item.core === '|') { beatPositions[index] = undefined; runningBeat = 0; return; }
+      beatPositions[index] = runningBeat;
+      runningBeat += Math.max(0.25, Math.min(4, Number(item.durationBeats) || 1));
+    });
     let html = '';
     let tokenIndex = -1;
     let inToken = false;
@@ -1112,18 +1145,25 @@
         let nextStart = tokenEnd;
         while (nextStart < text.length && /\s/.test(text[nextStart])) nextStart += 1;
         const beams = item && item.core !== '|' ? jianpuBeamCount(item.durationBeats) : 0;
+        const dotted = Boolean(item) && item.core !== '|' && isDottedDuration(item.durationBeats);
         const previous = timeline[tokenIndex - 1];
         const next = timeline[tokenIndex + 1];
         const previousBeams = previous?.core !== '|' ? jianpuBeamCount(previous?.durationBeats) : 0;
         const nextBeams = next?.core !== '|' ? jianpuBeamCount(next?.durationBeats) : 0;
-        const canJoinLeft = beams > 0 && previousBeams > 0 && !text.slice(previousTokenEnd, i).includes('\n');
-        const canJoinRight = beams > 0 && nextBeams > 0 && nextStart < text.length && !text.slice(tokenEnd, nextStart).includes('\n');
+        // Same beat grouping the sheet uses, so the marks under the text match the beams.
+        const beatOf = beatPositions[tokenIndex];
+        const sameBeatAs = other => beatOf !== undefined && other !== undefined
+          && Math.floor(beatOf + 0.0001) === Math.floor(other + 0.0001);
+        const canJoinLeft = beams > 0 && previousBeams > 0 && sameBeatAs(beatPositions[tokenIndex - 1])
+          && !text.slice(previousTokenEnd, i).includes('\n');
+        const canJoinRight = beams > 0 && nextBeams > 0 && sameBeatAs(beatPositions[tokenIndex + 1])
+          && nextStart < text.length && !text.slice(tokenEnd, nextStart).includes('\n');
         const classes = ['seq-token'];
         if (canJoinLeft && previousBeams >= 1) classes.push('join-l1-left');
         if (canJoinRight && nextBeams >= 1) classes.push('join-l1-right');
         if (beams >= 2 && canJoinLeft && previousBeams >= 2) classes.push('join-l2-left');
         if (beams >= 2 && canJoinRight && nextBeams >= 2) classes.push('join-l2-right');
-        html += `<span class="${classes.join(' ')}" data-sequence-start="${i}" data-sequence-end="${tokenEnd}"${beams ? ` data-beams="${beams}"` : ''}>`;
+        html += `<span class="${classes.join(' ')}" data-sequence-start="${i}" data-sequence-end="${tokenEnd}"${beams ? ` data-beams="${beams}"` : ''}>${dotted ? '<i class="seq-dot"></i>' : ''}`;
         inToken = true;
         previousTokenEnd = tokenEnd;
       }
@@ -1227,10 +1267,10 @@
   }
 
   function createTimingValueContent(core) {
-    if (isRestCore(core)) {
-      const rest = document.createElement('strong');
-      rest.textContent = '0';
-      return rest;
+    if (isSilentCore(core)) {
+      const mark = document.createElement('strong');
+      mark.textContent = isHoldCore(core) ? '–' : '0';
+      return mark;
     }
     const parts = String(core).split('+').map(v => v.trim()).filter(Boolean);
     if (parts.length <= 1) {
@@ -1251,7 +1291,7 @@
 
 
   function coreHasLowerOctave(core) {
-    if (!core || isRestCore(core)) return false;
+    if (!core || isSilentCore(core)) return false;
     return String(core).split('+').some(part => splitOctaveMark(part.trim()).mark === 'down');
   }
 
@@ -1305,6 +1345,7 @@
 
     const measuresPerRow = 2;
     const consecutive = (a, b) => Math.abs((a.startBeat + a.duration) - b.startBeat) < 0.001;
+    const sameBeatGroup = (a, b) => Math.floor(a.startBeat + 0.0001) === Math.floor(b.startBeat + 0.0001);
 
     for (let rowStart = 0; rowStart < measures.length; rowStart += measuresPerRow) {
       const row = document.createElement('div');
@@ -1319,11 +1360,13 @@
           const button = document.createElement('button');
           button.type = 'button';
           const isSelected = selectedIndices.has(index);
-          button.className = `timing-token${isRestCore(item.core) ? ' is-rest' : ''}${isSelected ? ' selected' : ''}${index === state.editorTimingSelectionIndex && selectedIndices.size > 1 ? ' is-anchor' : ''}`;
+          button.className = `timing-token${isSilentCore(item.core) ? ' is-rest' : ''}${isSelected ? ' selected' : ''}${index === state.editorTimingSelectionIndex && selectedIndices.size > 1 ? ' is-anchor' : ''}`;
           button.dataset.timelineIndex = String(index);
           button.dataset.timingWord = timingWord(duration).toLowerCase().replace(/\s+/g, '-');
           button.setAttribute('aria-pressed', String(isSelected));
           if (coreHasLowerOctave(item.core)) button.classList.add('has-lower-octave');
+          if (item.tie && tieTargetIndex(index) >= 0) button.classList.add('is-tied');
+          if (isDottedDuration(item.durationBeats)) button.classList.add('is-dotted');
           if (String(item.core).includes('+')) button.classList.add('is-chord');
 
           const firstLabel = item.core.split('+')[0];
@@ -1337,7 +1380,7 @@
           const extensionCount = duration >= 3.5 ? 3 : duration >= 1.5 ? 1 : 0;
           if (extensionCount) {
             const extensions = document.createElement('span');
-            const rest = isRestCore(item.core);
+            const rest = isSilentCore(item.core);
             extensions.className = rest ? 'jianpu-rest-repeats' : 'jianpu-extensions';
             extensions.setAttribute('aria-hidden', 'true');
             for (let extension = 0; extension < extensionCount; extension++) {
@@ -1363,12 +1406,16 @@
               const nextBeamCount = next ? jianpuBeamCount(next.duration) : 0;
               // Join each underline level independently. Quick beside Very quick shares
               // the first underline; the second underline only joins when both have it.
+              // Beams also break on every whole beat, so four quick notes read as two
+              // pairs rather than one long line, matching printed jianpu.
               const joinsLeft = previous
                 && previousBeamCount >= level
-                && consecutive(previous, entry);
+                && consecutive(previous, entry)
+                && sameBeatGroup(previous, entry);
               const joinsRight = next
                 && nextBeamCount >= level
-                && consecutive(entry, next);
+                && consecutive(entry, next)
+                && sameBeatGroup(entry, next);
               beam.classList.toggle('joins-left', Boolean(joinsLeft));
               beam.classList.toggle('joins-right', Boolean(joinsRight));
               beams.appendChild(beam);
@@ -1395,8 +1442,9 @@
           }
 
           const timingLabel = timingWord(duration);
-          button.title = `${isRestCore(item.core) ? 'Rest' : `Note ${item.core}`}: ${timingLabel} (${timingDescription(duration)})`;
-          button.setAttribute('aria-label', `${isRestCore(item.core) ? 'Rest' : `Note ${item.core}`}, ${timingLabel}; ${timingDescription(duration)}`);
+          const what = isHoldCore(item.core) ? 'Hold' : isRestCore(item.core) ? 'Rest' : `Note ${item.core}`;
+          button.title = `${what}: ${timingLabel} (${timingDescription(duration)})`;
+          button.setAttribute('aria-label', `${what}, ${timingLabel}; ${timingDescription(duration)}`);
           measureEl.appendChild(button);
         });
 
@@ -1411,6 +1459,64 @@
       target.appendChild(row);
     }
     return target.children.length > 0;
+  }
+
+  // A tie needs a following note that repeats at least one of the same numbers. Anything
+  // else (a rest, a bar-line at the end, a different pitch) cannot be held into.
+  // The arcs on printed jianpu are usually SLURS over different pitches, not ties over the
+  // same one. So an arc may join any two sounding notes; it only merges them into one
+  // longer note when the pitches actually match, which is what a tie means.
+  function tieTargetIndex(index) {
+    const item = state.editorTimeline[index];
+    if (!item || item.core === '|' || isSilentCore(item.core)) return -1;
+    for (let next = index + 1; next < state.editorTimeline.length; next += 1) {
+      const candidate = state.editorTimeline[next];
+      if (candidate.core === '|') continue;      // an arc may cross a bar line
+      if (isSilentCore(candidate.core)) return -1; // but not a silence
+      return next;
+    }
+    return -1;
+  }
+
+  function tieHoldsSamePitch(index) {
+    const next = tieTargetIndex(index);
+    if (next < 0) return false;
+    const mine = new Set(String(state.editorTimeline[index].core).split('+').map(v => v.trim()));
+    return String(state.editorTimeline[next].core).split('+').map(v => v.trim()).some(l => mine.has(l));
+  }
+
+  // A dot to the right of a number makes it half as long again: 1 beat becomes 1.5, a
+  // quick note becomes 0.75. Printed jianpu writes these constantly.
+  const DOTTABLE = [0.25, 0.5, 1, 2, 4];
+  function isDottedDuration(durationBeats) {
+    return DOTTABLE.some(base => Math.abs(Number(durationBeats) - base * 1.5) < 0.0001);
+  }
+
+  function updateDotButton() {
+    if (!els.timingDotBtn) return;
+    const chosen = timingSelectionIndices().map(i => state.editorTimeline[i]).filter(item => item && item.core !== '|');
+    const usable = chosen.filter(item => isDottedDuration(item.durationBeats)
+      || DOTTABLE.some(base => Math.abs(Number(item.durationBeats) - base) < 0.0001));
+    els.timingDotBtn.disabled = usable.length === 0;
+    const allDotted = usable.length > 0 && usable.every(item => isDottedDuration(item.durationBeats));
+    els.timingDotBtn.classList.toggle('active', allDotted);
+    els.timingDotBtn.setAttribute('aria-pressed', String(allDotted));
+    els.timingDotBtn.title = allDotted
+      ? 'Remove the dot and return these notes to their plain length'
+      : 'Dotted note: the dot to the right makes the note half as long again';
+  }
+
+  function updateTieButton() {
+    if (!els.timingTieBtn) return;
+    const chosen = timingSelectionIndices();
+    const usable = chosen.filter(index => tieTargetIndex(index) >= 0);
+    els.timingTieBtn.disabled = usable.length === 0;
+    els.timingTieBtn.title = usable.length
+      ? 'Draw an arc to the next note. Same number: it is held as one longer note. Different number: it is a phrase mark.'
+      : 'Select a note that is followed by another note. An arc cannot start on a rest or on the last note.';
+    const allTied = usable.length > 0 && usable.every(index => state.editorTimeline[index]?.tie);
+    els.timingTieBtn.classList.toggle('active', allTied);
+    els.timingTieBtn.setAttribute('aria-pressed', String(allTied));
   }
 
   function renderTimingEditor() {
@@ -1438,8 +1544,13 @@
       els.timingRangeBtn.disabled = !hasAnchor;
       els.timingRangeBtn.classList.toggle('active', Boolean(state.editorRangeSelectArmed));
       els.timingRangeBtn.setAttribute('aria-pressed', String(Boolean(state.editorRangeSelectArmed)));
-      els.timingRangeBtn.textContent = state.editorRangeSelectArmed ? 'Tap last note' : '↔ Select range';
+      const picked = timingSelectionIndices().length;
+      els.timingRangeBtn.textContent = !state.editorRangeSelectArmed
+        ? '↔ Select range'
+        : picked > 1 ? 'Tap to add · Done' : 'Tap last note';
     }
+    updateTieButton();
+    updateDotButton();
     if (chosen.length > 1) {
       const words = new Set(chosen.map(item => timingWord(item.durationBeats).toLowerCase()));
       els.selectedTimingLabel.textContent = words.size === 1
@@ -1449,7 +1560,7 @@
       const only = chosen[0];
       els.selectedTimingLabel.textContent = state.editorRangeSelectArmed
         ? `Now tap the last note in the range. Everything between the two notes will be selected.`
-        : `${isRestCore(only.core) ? 'Rest' : `Note ${only.core}`} is ${timingWord(only.durationBeats).toLowerCase()}: ${timingDescription(only.durationBeats)}. Tap Select range, then tap the last note. On desktop, Shift-click also works.`;
+        : `${isHoldCore(only.core) ? 'Hold' : isRestCore(only.core) ? 'Rest' : `Note ${only.core}`} is ${timingWord(only.durationBeats).toLowerCase()}: ${timingDescription(only.durationBeats)}. Tap Select range, then tap the last note. On desktop, Shift-click also works.`;
     } else {
       els.selectedTimingLabel.textContent = 'Tap a number to select it. To select several notes on mobile, tap the first note, choose Select range, then tap the last note. One underline means quick; two mean very quick.';
     }
@@ -1473,12 +1584,12 @@
     raw.forEach(token => {
       if (token === '|') return;
       const timed = timedTokenParts(token);
-      if (!timed.valid || (!timed.core && !isRestCore(timed.core))) {
+      if (!timed.valid || (!timed.core && !isSilentCore(timed.core))) {
         invalidTokens.push(token);
         return;
       }
       beats += timed.durationBeats;
-      if (isRestCore(timed.core)) return;
+      if (isSilentCore(timed.core)) return;
       const chordLabels = timed.core.split('+').map(value => value.trim()).filter(Boolean);
       if (!chordLabels.length) {
         invalidTokens.push(token);
@@ -1499,6 +1610,7 @@
     const playableByLabel = new Map(playableNotes().map(note => [String(note.label).toLowerCase(), note]));
     let beat = 0;
     let bar = 1;
+    const heldFrom = new Map();   // label -> the note still sounding through a tie
 
     raw.forEach(token => {
       if (token === '|') {
@@ -1510,12 +1622,43 @@
         invalidTokens.push(token);
         return;
       }
+      if (isHoldCore(timed.core)) {
+        // Let the last note ring on rather than striking anything. On a tongue drum that
+        // is exactly what a hold is, so there is nothing to sustain - only the next strike
+        // to postpone.
+        const ringing = notes[notes.length - 1];
+        if (ringing) {
+          ringing.duration += timed.durationBeats * secondsPerBeat;
+          ringing.durationBeats += timed.durationBeats;
+        }
+        beat += timed.durationBeats;
+        return;
+      }
       if (isRestCore(timed.core)) {
         beat += timed.durationBeats;
         return;
       }
       const chordLabels = timed.core.split('+').map(v => v.trim()).filter(Boolean);
       if (!chordLabels.length) invalidTokens.push(token);
+      if (heldFrom.size) {
+        // This note is the tail of a tie: lengthen the note already sounding rather than
+        // striking it again. Anything not tied over is played normally.
+        const stillHeld = new Map();
+        chordLabels.forEach(label => {
+          const held = heldFrom.get(label.toLowerCase());
+          if (!held) return;
+          held.duration += timed.durationBeats * secondsPerBeat;
+          held.durationBeats += timed.durationBeats;
+          if (timed.tie) stillHeld.set(label.toLowerCase(), held);
+        });
+        const carried = new Set(heldFrom.keys());
+        heldFrom.clear();
+        stillHeld.forEach((value, key) => heldFrom.set(key, value));
+        const fresh = chordLabels.filter(label => !carried.has(label.toLowerCase()));
+        if (!fresh.length) { beat += timed.durationBeats; return; }
+        chordLabels.length = 0;
+        fresh.forEach(label => chordLabels.push(label));
+      }
       chordLabels.forEach(label => {
         const playable = playableByLabel.get(label.toLowerCase());
         if (playable) {
@@ -1529,6 +1672,7 @@
             beat,
             bar
           });
+          if (timed.tie) heldFrom.set(label.toLowerCase(), notes[notes.length - 1]);
         }
       });
       beat += timed.durationBeats;
@@ -1633,6 +1777,7 @@
     state.bestStreak = 0;
     state.hitNotes.clear();
     state.missedNoteIds.clear();
+    resetTapeRun();
     state.lastResultMissed = [];
     state.loopA = null;
     state.loopB = null;
@@ -1651,6 +1796,7 @@
     const folder = songFolderInfo(song, title);
     const difficulty = songDifficulty(song);
     els.currentTitle.textContent = title.displayTitle;
+    if (tapeEls.stageSongName) tapeEls.stageSongName.innerHTML = `<b>${escapeHtml(title.displayTitle)}</b>${folder.label ? `<small>${escapeHtml(folder.label)}</small>` : ''}`;
     if (els.currentCollection) {
       els.currentCollection.textContent = folder.label;
       els.currentCollection.hidden = false;
@@ -1695,7 +1841,7 @@
       return `${title.fullTitle} ${title.displayTitle} ${title.collection}`.toLowerCase().includes(q);
     };
 
-    const demos = state.songs.filter(isDemoSong).filter(matchesSearch);
+    const demos = state.songs.filter(isDemoSong).filter(matchesSearch).filter(songMatchesLevel);
     const demoGroup = document.createElement('section');
     demoGroup.className = 'song-group catalogue-collection demo-collection';
     const demoHeading = document.createElement('div');
@@ -1714,7 +1860,7 @@
     demoGroup.appendChild(demoItems);
     els.songList.appendChild(demoGroup);
 
-    const mine = personalSongs().filter(matchesSearch);
+    const mine = personalSongs().filter(matchesSearch).filter(songMatchesLevel);
     const myGroup = document.createElement('section');
     myGroup.className = 'song-group catalogue-collection personal-collection';
     const myHeading = document.createElement('div');
@@ -2332,6 +2478,7 @@
     state.staticGuideKey = '';
     state.laneGuideCanvas = null;
     state.laneGuideKey = '';
+    placeTape(rect.width, rect.height);
     buildStarField(rect.width, rect.height);
     renderFrame();
   }
@@ -2368,6 +2515,7 @@
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
     if (!width || !height) return;
+    updateTape();
     const nowMs = performance.now();
     const now = nowMs / 1000;
     const delta = Math.min(0.1, Math.max(0, now - (state.lastFrameAt || now)));
@@ -2933,12 +3081,12 @@
 
     // Keep the main drum centred on every screen size. The companion drum occupies
     // its own overlay area and must not push the primary instrument off-centre on mobile.
-    return {
+    return fitDrumAboveTape({
       drumSize,
       scale: drumSize / STAGE_DRUM_BASE,
       cx,
       cy
-    };
+    }, width);
   }
 
   function getHighDrumTarget(label, cx, cy, knownSlot = null) {
@@ -3623,7 +3771,7 @@
     });
   }
 
-  async function playMidi(midi, referencePitch = 440, accent = false, delaySeconds = 0) {
+  async function playMidi(midi, referencePitch = 440, accent = false, delaySeconds = 0, gain = 1) {
     const requestedAt = performance.now();
     let context = state.audioContext;
     if (!context || context.state !== 'running') context = await ensureAudio();
@@ -3634,9 +3782,9 @@
     if (cachedBuffer) {
       const source = context.createBufferSource();
       source.buffer = cachedBuffer;
-      if (accent) {
+      if (accent || gain !== 1) {
         const level = context.createGain();
-        level.gain.setValueAtTime(4 / 3, startTime);
+        level.gain.setValueAtTime((accent ? 4 / 3 : 1) * gain, startTime);
         source.connect(level).connect(state.masterGain || context.destination);
       } else {
         source.connect(state.masterGain || context.destination);
@@ -3728,6 +3876,7 @@
     if (options.source !== 'microphone') {
       primeAudioFromGesture();
       playTone(noteIndex, true).catch(() => {});
+      state.micEchoUntil = performance.now() + 380;
     }
     flashPad(noteIndex, 'active');
     if (!state.playing && state.mode !== 'wait') return;
@@ -3741,13 +3890,16 @@
         state.streak += 1;
         state.bestStreak = Math.max(state.bestStreak, state.streak);
         state.hitNotes.add(expected.id);
+        tapeJudge(state.missedNoteIds.has(expected.id) ? 'good' : 'hit');
         state.waitingIndex += 1;
         state.currentTime = Math.min(state.duration, (state.parsedNotes[state.waitingIndex]?.time ?? state.duration));
         if (state.waitingIndex >= state.parsedNotes.length) finishPlayback();
+        else scheduleWaitHint(expected);
       } else {
         state.missedNoteIds.add(expected.id);
         state.streak = 0;
         flashPad(noteIndex, 'wrong');
+        tapeJudge('wrong');
       }
       updatePracticeUI();
       renderFrame();
@@ -3765,11 +3917,15 @@
         state.score += timing < .16 ? 1 : .75;
         state.streak += 1;
         state.bestStreak = Math.max(state.bestStreak, state.streak);
+        const quality = timing < .16 ? 'perfect' : 'good';
+        tape.quality.set(match.id, quality);
+        tapeJudge(quality);
       } else {
         const nearestExpected = candidates.slice().sort((a, b) => Math.abs(a.time - state.currentTime) - Math.abs(b.time - state.currentTime))[0];
         if (nearestExpected) state.missedNoteIds.add(nearestExpected.id);
         state.streak = 0;
         flashPad(noteIndex, 'wrong');
+        tapeJudge('wrong');
       }
       updatePracticeUI();
     }
@@ -3832,6 +3988,7 @@
   }
 
   async function toggleMicrophone() {
+    state.micByTuner = false;
     if (state.micEnabled) {
       stopMicrophone();
       showToast('Microphone turned off.', 'success');
@@ -3918,6 +4075,9 @@
 
   function analyseMicrophoneStrike() {
     if (!state.micEnabled || !state.micAnalyser || !state.micTimeData) return;
+    // Listen never uses the microphone, and a note tapped on screen is not heard twice.
+    if (state.mode === 'demo') return;
+    if (state.mode !== 'tuner' && performance.now() < (state.micEchoUntil || 0)) return;
     state.micAnalyser.getFloatTimeDomainData(state.micTimeData);
     const result = recogniseInstrumentNote(state.micTimeData, state.audioContext.sampleRate);
     if (!result) {
@@ -4046,7 +4206,7 @@
 
     if (!allowed) {
       els.abLoopStatus.textContent = state.mode === 'wait'
-        ? 'A-B looping is available in Demo and Practice modes.'
+        ? 'A-B looping is available in Listen and Practice modes.'
         : 'A-B looping is unavailable in Tuner mode.';
     } else if (ready) {
       els.abLoopStatus.textContent = `${state.sectionLoop ? 'Looping' : 'Section'} ${formatTime(state.loopA)} to ${formatTime(state.loopB)}.`;
@@ -4062,6 +4222,8 @@
   function seekToTime(time, { clearSectionHits = false } = {}) {
     const target = Math.max(0, Math.min(state.duration, Number(time) || 0));
     state.currentTime = target;
+    state.parsedNotes.forEach(note => { if (note.time >= target - 0.02) tape.quality.delete(note.id); });
+    tape.passiveIdx = 0;
     if (clearSectionHits && Number.isFinite(state.loopA) && Number.isFinite(state.loopB)) {
       state.parsedNotes.forEach(note => {
         if (note.time >= state.loopA - 0.02 && note.time < state.loopB + 0.02) state.hitNotes.delete(note.id);
@@ -4084,7 +4246,7 @@
 
   function setLoopPoint(which) {
     if (!sectionLoopAvailable() || !state.duration) {
-      showToast('A-B looping is available in Demo and Practice modes.', 'warning');
+      showToast('A-B looping is available in Listen and Practice modes.', 'warning');
       return;
     }
     const minimumGap = Math.max(0.4, (state.secondsPerBeat || 0.5) * 0.5);
@@ -4117,7 +4279,7 @@
 
   function toggleSectionLoop() {
     if (!sectionLoopAvailable()) {
-      showToast('Switch to Demo or Practice to use A-B looping.', 'warning');
+      showToast('Switch to Listen or Practice to use A-B looping.', 'warning');
       return;
     }
     const ready = Number.isFinite(state.loopA) && Number.isFinite(state.loopB) && state.loopB > state.loopA + 0.05;
@@ -4258,6 +4420,7 @@
     }
     renderRecommendedNext(song);
     if (!els.resultDialog.open) els.resultDialog.showModal();
+    requestAnimationFrame(() => celebrateResults(tapeEls.resultSparkles, training ? inputAccuracy / 100 : 0.8));
   }
 
   function replayFromResults() {
@@ -4382,6 +4545,8 @@
     if (!state.playing || state.mode === 'wait' || document.hidden) return;
     state.currentTime = Math.min(state.duration, ((now - state.playbackStartedAt) / 1000) * state.speed);
     flashDueVisualNotes();
+    markPassiveMisses();
+    updateTape();
     // Sound is scheduled by a separate look-ahead clock. DOM labels, foreground notes,
     // and the animated backdrop keep independent budgets here.
     const profile = visualPerformanceProfile();
@@ -4414,12 +4579,14 @@
     const songHorizon = AUDIO_LOOKAHEAD_SECONDS * state.speed;
     const sectionEnd = state.sectionLoop && Number.isFinite(state.loopB) ? state.loopB - .002 : Infinity;
     const horizon = Math.min(playbackTime + songHorizon, sectionEnd);
-    if (state.mode === 'practice') return;
+    if (state.mode === 'practice' && !state.guide) return;
+    const guideGain = state.mode === 'practice' ? 0.5 : 1;
     for (let i = state.lastScheduledIndex + 1; i < state.parsedNotes.length; i++) {
       const note = state.parsedNotes[i];
+      if (note.time < playbackTime - .05) { state.lastScheduledIndex = i; continue; }
       if (note.time <= horizon) {
         const delaySeconds = Math.max(0, (note.time - playbackTime) / state.speed);
-        playMidi(note.midi, state.instrument.referencePitch || 440, false, delaySeconds).catch(() => {});
+        playMidi(note.midi, state.instrument.referencePitch || 440, false, delaySeconds, guideGain).catch(() => {});
         state.lastScheduledIndex = i;
       } else break;
     }
@@ -4535,6 +4702,7 @@
     state.waitingIndex = 0;
     state.hitNotes.clear();
     state.missedNoteIds.clear();
+    resetTapeRun();
     updateTransportUI();
     updatePracticeUI();
     renderFrame();
@@ -4573,20 +4741,120 @@
     els.loopBtn.setAttribute('aria-label', state.loop ? 'Turn off song loop' : 'Loop song');
     els.loopBtn.title = state.loop ? 'Turn off song loop' : 'Loop song';
     els.metronomeBtn.classList.toggle('active', state.metronome);
+    if (els.guideBtn) {
+      const listen = state.mode === 'demo';
+      els.guideBtn.classList.toggle('active', state.guide);
+      els.guideBtn.setAttribute('aria-pressed', String(state.guide));
+      els.guideBtn.disabled = listen;
+      els.guideBtn.title = listen ? 'Listen always plays the song' : state.guide ? 'Song sound on: the app plays the song quietly while you play' : 'Song sound off: only your own notes';
+    }
     updateABLoopUI();
+  }
+
+  // Wait for note with the song sound on: after a correct note the next one is played
+  // softly, at the song's own gap, unless it has already been played.
+  function scheduleWaitHint(previous) {
+    clearTimeout(state.waitHintTimer);
+    if (!state.guide || state.mode !== 'wait') return;
+    const next = state.parsedNotes[state.waitingIndex];
+    if (!next) return;
+    const gap = Math.max(.3, Math.min(1.4, (next.time - previous.time) / state.speed));
+    const index = state.waitingIndex;
+    state.waitHintTimer = window.setTimeout(() => {
+      if (state.mode !== 'wait' || !state.playing || state.waitingIndex !== index) return;
+      playMidi(next.midi, state.instrument.referencePitch || 440, false, 0, .5).catch(() => {});
+    }, gap * 1000);
+  }
+
+  function appIsInstalled() {
+    return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  }
+
+  // Install button: the browser's own install prompt where there is one, and short
+  // instructions everywhere else.
+  function setupInstallButton() {
+    if (!els.installBtn) return;
+    let deferredPrompt = null;
+    els.installBtn.hidden = appIsInstalled();
+    window.addEventListener('beforeinstallprompt', event => {
+      event.preventDefault();
+      deferredPrompt = event;
+      els.installBtn.hidden = appIsInstalled();
+    });
+    window.addEventListener('appinstalled', () => {
+      deferredPrompt = null;
+      els.installBtn.hidden = true;
+      showToast('Installed. Find Ethereal Drum on your home screen.', 'success');
+    });
+    els.installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        try { await deferredPrompt.userChoice; } catch {}
+        deferredPrompt = null;
+        return;
+      }
+      const ua = navigator.userAgent;
+      let text;
+      if (location.protocol === 'file:') text = 'Open the trainer from its website (for example your GitHub Pages link) to install it. A file opened from the computer cannot be installed.';
+      else if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) text = 'On iPhone and iPad: tap the Share button in Safari, then Add to Home Screen.';
+      else if (/Firefox/.test(ua)) text = 'In Firefox: open the ⋮ menu and choose Install (or Add to Home screen).';
+      else if (/SamsungBrowser/.test(ua)) text = 'In Samsung Internet: open the ☰ menu and choose Add page to → Home screen.';
+      else if (/Android/.test(ua)) text = 'Open the ⋮ browser menu and choose Install app or Add to Home screen.';
+      else text = 'Click the install icon at the right end of the address bar, or open the browser menu and choose Install Ethereal Drum. Safari on Mac: File → Add to Dock.';
+      els.installHelpText.textContent = text;
+      if (!els.installDialog.open) els.installDialog.showModal();
+    });
+  }
+
+  // Swipe the note tape to move back or forward through the song.
+  function bindTapeScrub() {
+    const strip = tapeEls.noteTape?.querySelector('.tape-window');
+    if (!strip) return;
+    let drag = null;
+    strip.addEventListener('pointerdown', event => {
+      if (!tape.visible || !state.parsedNotes.length || state.mode === 'tuner') return;
+      drag = { id: event.pointerId, x0: event.clientX, t0: state.currentTime, wasPlaying: state.playing && state.mode !== 'wait', moved: false };
+      strip.setPointerCapture?.(event.pointerId);
+    });
+    strip.addEventListener('pointermove', event => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const dx = event.clientX - drag.x0;
+      if (!drag.moved && Math.abs(dx) < 6) return;
+      if (!drag.moved) {
+        drag.moved = true;
+        if (drag.wasPlaying) pausePlayback();
+        strip.classList.add('scrubbing');
+      }
+      const time = drag.t0 - (dx / tape.pxPerBeat) * state.secondsPerBeat;
+      seekToTime(Math.max(0, Math.min(state.duration - 0.01, time)));
+    });
+    const end = event => {
+      if (!drag || event.pointerId !== drag.id) return;
+      const resume = drag.moved && drag.wasPlaying;
+      strip.classList.remove('scrubbing');
+      drag = null;
+      if (resume) startPlaybackClock();
+    };
+    strip.addEventListener('pointerup', end);
+    strip.addEventListener('pointercancel', end);
   }
 
   function setMode(mode) {
     pausePlayback();
     restartSong();
     state.mode = mode;
+    document.body.dataset.mode = mode;
     if (!sectionLoopAvailable()) state.sectionLoop = false;
-    document.querySelectorAll('.segment').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+    document.querySelectorAll('.segment').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode || (btn.dataset.mode === 'practice' && mode === 'wait')));
+    if (els.waitToggle) els.waitToggle.checked = mode === 'wait' || (mode !== 'practice' && state.waitPref);
+    // A microphone the tuner switched on goes off again afterwards; Listen never listens.
+    if (mode !== 'tuner' && state.micEnabled && (state.micByTuner || mode === 'demo')) stopMicrophone();
+    if (mode !== 'tuner') state.micByTuner = false;
     const tunerMode = mode === 'tuner';
     els.trainerGrid?.classList.toggle('tuner-mode', tunerMode);
     if (els.tunerPanel) els.tunerPanel.hidden = !tunerMode;
     const hints = {
-      demo: 'Listen and watch the notes.',
+      demo: 'Sit back and listen: the song plays and the notes light up. Nothing is scored.',
       practice: 'Play on screen, keyboard, or enable the microphone.',
       wait: 'The song advances after the correct tap, key, or recognised drum note.',
       tuner: 'Strike one tongue at a time. The matching tongue and pitch meter will respond.'
@@ -4598,10 +4866,11 @@
         applyVisualMode();
       }
       resetTunerDisplay(state.micEnabled ? 'Listening for a clear pitch' : 'Turn on the microphone to begin');
-      if (!state.micEnabled) startMicrophone();
+      if (!state.micEnabled) { state.micByTuner = true; startMicrophone(); }
     }
     updateTransportUI();
     updatePracticeUI();
+    syncTapeVisibility();
     renderFrame();
   }
 
@@ -4732,6 +5001,10 @@
     state.editorSelectionEnd = els.sequenceInput.value.length;
     renderMiniPads();
     renderTimingEditor();
+    // Never skip the open. A <dialog> that is left marked open but is not actually on
+    // screen would otherwise make this button do nothing at all, so close first and then
+    // reopen; showModal on an already-open dialog throws.
+    try { if (els.editorDialog.open) els.editorDialog.close(); } catch { /* not open */ }
     els.editorDialog.showModal();
     window.setTimeout(() => els.songTitleInput.focus(), 30);
   }
@@ -4747,6 +5020,100 @@
   // Plain text cannot draw Jianpu beams, so Copy text uses '-' for a Quick run and
   // '=' for a Very quick run on a second aligned row. Spaces between consecutive
   // notes in the same run are filled to make one continuous line, matching the sheet.
+  // The mirror of jianpuCopyText. A song copied out of the app - or written in a notepad
+  // the same way - keeps its rhythm as a line of dashes under the numbers. Pasted back in
+  // raw, every one of those dashes reads as a rest, which is why a pasted song arrived as
+  // rows of zeroes. Read the dashes by column instead, and they become the note lengths.
+  function isJianpuTimingLine(line) {
+    return /[-=_]/u.test(line) && !/[0-9]/u.test(line) && /^[\s\-=_]*$/u.test(line);
+  }
+
+  // Combining octave dots take up no width on screen, so they must not shift the columns
+  // the dashes are lined up against.
+  function plainTextCells(line) {
+    const cells = [];
+    [...String(line || '').normalize('NFD')].forEach(character => {
+      if (/\p{M}/u.test(character)) {
+        if (cells.length) cells[cells.length - 1].marks += character;
+        return;
+      }
+      cells.push({ character, marks: '' });
+    });
+    return cells;
+  }
+
+  function looksLikeTextJianpu(text) {
+    const lines = String(text || '').replace(/\r\n?/gu, '\n').split('\n');
+    return lines.some((line, index) => index > 0 && isJianpuTimingLine(line) && /[0-9]/u.test(lines[index - 1]));
+  }
+
+  function importJianpuText(text) {
+    const lines = String(text || '').replace(/\r\n?/gu, '\n').split('\n');
+    const tokens = [];
+    const dotted = [];
+    lines.forEach((line, index) => {
+      // This line is the rhythm for the line above it, not notes of its own.
+      if (index > 0 && isJianpuTimingLine(line) && /[0-9]/u.test(lines[index - 1])) return;
+      const under = lines[index + 1];
+      const timing = (/[0-9]/u.test(line) && under !== undefined && isJianpuTimingLine(under))
+        ? plainTextCells(under).map(cell => cell.character) : [];
+      const cells = plainTextCells(line);
+      let i = 0;
+      while (i < cells.length) {
+        const character = cells[i].character;
+        if (/\s/u.test(character)) { i += 1; continue; }
+        // A repeat sign is several characters that all amount to one bar line here.
+        if (character === '|' || character === ':') {
+          while (i < cells.length && (cells[i].character === '|' || cells[i].character === ':')) i += 1;
+          if (tokens.length && tokens[tokens.length - 1] !== '|') tokens.push('|');
+          continue;
+        }
+        if (/[0-9]/u.test(character)) {
+          const start = i;
+          const base = character + cells[i].marks;
+          i += 1;
+          // A dot to the right makes the note half as long again.
+          let hasDot = false;
+          while (i < cells.length && cells[i].character === '.') { hasDot = true; i += 1; }
+          let mark = '';
+          for (let column = start; column < i; column += 1) {
+            if (timing[column] === '=') mark = '=';
+            else if ((timing[column] === '-' || timing[column] === '_') && mark !== '=') mark = '_';
+          }
+          if (hasDot) dotted.push(tokens.length);
+          tokens.push(base + mark);
+          continue;
+        }
+        // A dash on a line that also holds numbers is a rest, the same as typing one.
+        if (character === '-') { tokens.push('-'); i += 1; continue; }
+        i += 1;
+      }
+    });
+    while (tokens.length && tokens[tokens.length - 1] === '|') tokens.pop();
+    return { sequence: tokens.join(' '), dotted };
+  }
+
+  // Notes arriving from the scanner or from pasted text are written in the _ and = typing
+  // shorthand. The box does not keep that shorthand: it reads the rhythm out and shows
+  // clean numbers, exactly as typing does.
+  function loadSequenceIntoEditor(sequence, dottedIndices = []) {
+    if (!els.sequenceInput) return;
+    els.sequenceInput.value = sequence;
+    syncEditorTimelineFromCleanInput();
+    dottedIndices.forEach(index => {
+      const item = state.editorTimeline[index];
+      if (item && item.core !== '|') {
+        item.durationBeats = Math.min(16, (Number(item.durationBeats) || 1) * 1.5);
+      }
+    });
+    stripTimingShortcutsFromInput();
+    els.sequenceInput.value = formatSequenceIntoLines(cleanSequenceFromTimeline());
+    state.editorSelectionStart = els.sequenceInput.value.length;
+    state.editorSelectionEnd = els.sequenceInput.value.length;
+    renderSequenceBackdrop();
+    renderTimingEditor();
+  }
+
   function jianpuCopyText() {
     const sourceLines = String(els.sequenceInput?.value || '').trim().split(/\n/u);
     const output = [];
@@ -4754,15 +5121,22 @@
     sourceLines.forEach(sourceLine => {
       const tokens = sourceLine.trim().split(/\s+/u).filter(Boolean);
       if (!tokens.length) return;
-      const noteLine = tokens.join(' ');
       const timingColumns = [];
+      const printed = [];
       let column = 0;
       let previousMark = '';
       let previousWasBar = true;
       tokens.forEach((token, tokenIndex) => {
         if (tokenIndex) column += 1;
         const item = state.editorTimeline[timelineIndex++];
-        const width = Math.max(1, plainTextColumnWidth(token));
+        // A dotted note is written with the dot to its right, the way it is printed, so
+        // that its length is still there when the song is pasted back in.
+        // Whole beats are written as dashes below; the dot is only for the half beat a
+        // dotted note adds. A note is never given both.
+        const shown = (item && item.core !== '|' && !Number.isInteger(Number(item.durationBeats))
+          && isDottedDuration(item.durationBeats)) ? `${token}.` : token;
+        printed.push(shown);
+        const width = Math.max(1, plainTextColumnWidth(shown));
         const beams = item?.core === '|' ? 0 : jianpuBeamCount(item?.durationBeats);
         const mark = beams >= 2 ? '=' : beams === 1 ? '-' : '';
         if (mark) {
@@ -4772,10 +5146,19 @@
         previousMark = mark;
         previousWasBar = item?.core === '|';
         column += width;
+        // A note held for whole extra beats is written with a dash for each of them, the
+        // way it is printed, so its length is still there when the song is pasted back in.
+        const beatsHeld = Number(item?.durationBeats);
+        const held = item && item.core !== '|' && !isSilentCore(item.core) && Number.isInteger(beatsHeld)
+          ? beatsHeld - 1 : 0;
+        for (let extra = 0; extra < held; extra += 1) {
+          printed.push('-');
+          column += 2;
+        }
       });
       const timingLine = Array.from({ length: column }, (_, index) => timingColumns[index] || ' ')
         .join('').trimEnd();
-      output.push(noteLine);
+      output.push(printed.join(' '));
       if (timingLine.trim()) output.push(timingLine);
     });
     return output.join('\n');
@@ -4853,7 +5236,7 @@
     // the note count shown beside the song in the sidebar.
     const noteCount = state.editorTimeline.reduce((total, item) => {
       const core = String(item.core || '');
-      if (!core || core === '|' || isRestCore(core)) return total;
+      if (!core || core === '|' || isSilentCore(core)) return total;
       return total + core.split('+').filter(Boolean).length;
     }, 0);
     els.printSheet.innerHTML = '';
@@ -5064,6 +5447,39 @@
     if (document.activeElement !== els.sequenceInput) return;
     state.editorSelectionStart = els.sequenceInput.selectionStart ?? els.sequenceInput.value.length;
     state.editorSelectionEnd = els.sequenceInput.selectionEnd ?? state.editorSelectionStart;
+  }
+
+  // Which notes a stretch of the text covers. Whitespace-separated tokens line up 1:1 with
+  // state.editorTimeline, which is the same mapping the _ and = shortcuts use.
+  function timelineIndicesInTextRange(start, end) {
+    const value = String(els.sequenceInput?.value || '');
+    const indices = [];
+    const pattern = /\S+/gu;
+    let match;
+    let index = 0;
+    while ((match = pattern.exec(value)) !== null) {
+      const tokenStart = match.index;
+      const tokenEnd = tokenStart + match[0].length;
+      const touched = start === end
+        ? start >= tokenStart && start <= tokenEnd
+        : tokenStart < end && tokenEnd > start;
+      if (touched) indices.push(index);
+      index += 1;
+    }
+    return indices;
+  }
+
+  // Selecting numbers in the text box now selects the same notes on the sheet, so the
+  // timing buttons work from either view.
+  function syncTimingSelectionFromText() {
+    if (!state.expressiveTimingEnabled || !els.sequenceInput) return;
+    const start = state.editorSelectionStart;
+    const end = state.editorSelectionEnd;
+    const indices = timelineIndicesInTextRange(Math.min(start, end), Math.max(start, end));
+    const current = timingSelectionIndices();
+    if (indices.length === current.length && indices.every((value, i) => value === current[i])) return;
+    setTimingSelection(indices, indices.length ? indices[0] : null);
+    renderTimingEditor();
   }
 
 
@@ -5291,6 +5707,561 @@
       return;
     }
     replaceSequenceRange(trimmed.length, caret, '+');
+  }
+
+
+  // ================= jianpu sheet scanner (beta) =================================
+  // Ported from a pipeline measured against a real sheet: row banding, then glyph
+  // segmentation, then shape clustering. Clustering rather than font templates is what
+  // makes it font independent - every glyph in one image is the same font, so identical
+  // shapes group together and you name each group once.
+
+  const SCAN = { maxWidth: 1400, inkCutoff: 0.62, minGlyphWidth: 1, cell: 12 };
+
+  function scanInkMask(image) {
+    const scale = Math.min(1, SCAN.maxWidth / image.width);
+    const w = Math.max(1, Math.round(image.width * scale));
+    const h = Math.max(1, Math.round(image.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(image, 0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const grey = new Float32Array(w * h);
+    let total = 0;
+    for (let i = 0, p = 0; i < data.length; i += 4, p += 1) {
+      const v = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114) / 255;
+      grey[p] = v; total += v;
+    }
+    // Threshold relative to the page, so grey scans and photos both work.
+    const mean = total / grey.length;
+    const cutoff = Math.min(0.72, mean * SCAN.inkCutoff + 0.06);
+    const ink = new Uint8Array(w * h);
+    for (let p = 0; p < grey.length; p += 1) ink[p] = grey[p] < cutoff ? 1 : 0;
+    return { ink, w, h };
+  }
+
+  function scanBands(mask, minHeight, fraction) {
+    const { ink, w, h } = mask;
+    const profile = new Float64Array(h);
+    let peak = 0;
+    for (let y = 0; y < h; y += 1) {
+      let sum = 0;
+      for (let x = 0; x < w; x += 1) sum += ink[y * w + x];
+      profile[y] = sum;
+      if (sum > peak) peak = sum;
+    }
+    const threshold = Math.max(1, peak * fraction);
+    const bands = [];
+    let start = null;
+    for (let y = 0; y < h; y += 1) {
+      if (profile[y] > threshold && start === null) start = y;
+      else if (profile[y] <= threshold && start !== null) {
+        if (y - start >= minHeight) bands.push([start, y]);
+        start = null;
+      }
+    }
+    if (start !== null && h - start >= minHeight) bands.push([start, h]);
+    return bands;
+  }
+
+  function scanColumns(mask, y0, y1, skipColumns = null) {
+    const { ink, w } = mask;
+    const runs = [];
+    let start = null;
+    for (let x = 0; x < w; x += 1) {
+      let sum = 0;
+      if (!(skipColumns && skipColumns.has(x))) {
+        for (let y = y0; y < y1; y += 1) sum += ink[y * mask.w + x];
+      }
+      if (sum > 0 && start === null) start = x;
+      else if (sum === 0 && start !== null) {
+        if (x - start >= SCAN.minGlyphWidth) runs.push([start, x]);
+        start = null;
+      }
+    }
+    if (start !== null) runs.push([start, w]);
+    return runs;
+  }
+
+  // Normalised, contrast-free shape vector, so size and stroke weight do not matter.
+  function scanGlyphVector(mask, box) {
+    const { ink, w } = mask;
+    let minX = box.x1, maxX = box.x0, minY = box.y1, maxY = box.y0;
+    for (let y = box.y0; y < box.y1; y += 1) {
+      for (let x = box.x0; x < box.x1; x += 1) {
+        if (!ink[y * w + x]) continue;
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+      }
+    }
+    if (maxX < minX || maxY < minY) return null;
+    const bw = maxX - minX + 1, bh = maxY - minY + 1;
+    const n = SCAN.cell;
+    const v = new Float64Array(n * n);
+    for (let cy = 0; cy < n; cy += 1) {
+      for (let cx = 0; cx < n; cx += 1) {
+        const sx0 = minX + Math.floor(cx * bw / n), sx1 = Math.max(sx0 + 1, minX + Math.floor((cx + 1) * bw / n));
+        const sy0 = minY + Math.floor(cy * bh / n), sy1 = Math.max(sy0 + 1, minY + Math.floor((cy + 1) * bh / n));
+        let hit = 0, count = 0;
+        for (let y = sy0; y < sy1; y += 1) for (let x = sx0; x < sx1; x += 1) { hit += ink[y * w + x]; count += 1; }
+        v[cy * n + cx] = count ? hit / count : 0;
+      }
+    }
+    let mean = 0;
+    for (let i = 0; i < v.length; i += 1) mean += v[i];
+    mean /= v.length;
+    let norm = 0;
+    for (let i = 0; i < v.length; i += 1) { v[i] -= mean; norm += v[i] * v[i]; }
+    norm = Math.sqrt(norm);
+    if (!norm) return null;
+    for (let i = 0; i < v.length; i += 1) v[i] /= norm;
+    return { vector: v, box: { x0: minX, x1: maxX + 1, y0: minY, y1: maxY + 1 }, width: bw, height: bh };
+  }
+
+  function scanCosine(a, b) {
+    let sum = 0;
+    for (let i = 0; i < a.length; i += 1) sum += a[i] * b[i];
+    return sum;
+  }
+
+  // Agglomerate by similarity: anything close to an existing group joins it, otherwise it
+  // starts a new one. No fixed cluster count, so unusual sheets still work.
+  function scanCluster(glyphs, threshold = 0.62) {
+    const groups = [];
+    glyphs.forEach(glyph => {
+      let best = -1, bestScore = threshold;
+      groups.forEach((group, i) => {
+        const score = scanCosine(glyph.vector, group.centre);
+        if (score > bestScore) { bestScore = score; best = i; }
+      });
+      if (best < 0) {
+        groups.push({ centre: Float64Array.from(glyph.vector), members: [glyph] });
+      } else {
+        const group = groups[best];
+        group.members.push(glyph);
+        for (let i = 0; i < group.centre.length; i += 1) {
+          group.centre[i] += (glyph.vector[i] - group.centre[i]) / group.members.length;
+        }
+      }
+    });
+    // A single greedy pass fragments: the same digit can seed several groups depending on
+    // the order it was met. Merge groups whose centres agree, until nothing else merges.
+    let merged = true;
+    while (merged && groups.length > 1) {
+      merged = false;
+      outer:
+      for (let i = 0; i < groups.length; i += 1) {
+        for (let j = i + 1; j < groups.length; j += 1) {
+          if (scanCosine(groups[i].centre, groups[j].centre) < 0.74) continue;
+          const a = groups[i], b = groups[j];
+          const total = a.members.length + b.members.length;
+          for (let k = 0; k < a.centre.length; k += 1) {
+            a.centre[k] = (a.centre[k] * a.members.length + b.centre[k] * b.members.length) / total;
+          }
+          a.members = a.members.concat(b.members);
+          groups.splice(j, 1);
+          merged = true;
+          break outer;
+        }
+      }
+    }
+    // Strays land in whichever surviving group they are closest to, so the list you have
+    // to name stays short.
+    const strong = groups.filter(g => g.members.length >= 3).sort((a, b) => b.members.length - a.members.length);
+    const weak = groups.filter(g => g.members.length < 3);
+    const leftovers = [];
+    if (strong.length) {
+      weak.forEach(group => {
+        // Match each stray on its own shape rather than on its little group's average,
+        // which for a group of one or two is barely an average at all.
+        group.members.forEach(member => {
+          let best = null, bestScore = 0.42;
+          strong.forEach(candidate => {
+            const score = scanCosine(member.vector, candidate.centre);
+            if (score > bestScore) { bestScore = score; best = candidate; }
+          });
+          if (best) best.members.push(member);
+          else leftovers.push(member);
+        });
+      });
+    }
+    // Whatever still resembles nothing is kept together and shown, not quietly discarded.
+    // A number missing from the song is worse than a group you tell me to skip.
+    const final = (strong.length ? strong : groups).sort((a, b) => b.members.length - a.members.length);
+    if (strong.length && leftovers.length) {
+      final.push({ members: leftovers, centre: leftovers[0].vector, unsorted: true });
+    }
+    final.forEach(group => {
+      group.label = '';
+      // The sample shown for naming should be the member closest to the group's average,
+      // not whichever one happened to arrive first.
+      let best = group.members[0], bestScore = -Infinity;
+      group.members.forEach(member => {
+        const score = scanCosine(member.vector, group.centre);
+        if (score > bestScore) { bestScore = score; best = member; }
+      });
+      group.sample = best;
+    });
+    return final;
+  }
+
+
+  // A bar line is a near-full-height stroke. Finding it from the column profile catches
+  // the ones that touch a neighbouring number, which glyph segmentation merges away.
+  function scanBarColumns(mask, y0, y1) {
+    const height = y1 - y0;
+    // Measure a little above and below the numbers: a bar line runs taller than they do,
+    // which is what separates it from the upright stroke inside a 1, 4 or 7.
+    const top = Math.max(0, y0 - Math.round(height * 0.2));
+    const bottom = Math.min(mask.h, y1 + Math.round(height * 0.2));
+    const span = bottom - top;
+    const coverage = new Float32Array(mask.w);
+    for (let x = 0; x < mask.w; x += 1) {
+      let ink = 0;
+      for (let y = top; y < bottom; y += 1) ink += mask.ink[y * mask.w + x];
+      coverage[x] = ink / span;
+    }
+    const solid = [];
+    for (let x = 0; x < mask.w; x += 1) if (coverage[x] >= 0.85) solid.push(x);
+    const runs = [];
+    solid.forEach(x => {
+      const last = runs[runs.length - 1];
+      if (last && x === last[1] + 1) last[1] = x;
+      else runs.push([x, x]);
+    });
+    return runs.filter(([a, b]) => {
+      if (b - a + 1 > 3) return false;                       // thin
+      const left = coverage[a - 2] ?? 0;
+      const right = coverage[b + 2] ?? 0;
+      return left < 0.35 && right < 0.35;                    // and standing alone
+    });
+  }
+
+  // Horizontal runs under a row are the beams. Two stacked runs over the same numbers
+  // mean very quick, one means quick.
+  function scanBeamRuns(mask, y0, y1) {
+    const height = y1 - y0;
+    // Start below the numbers themselves: the flat bottom of a 2 or a 5 is nearly as wide
+    // as a beam, and counting those turned plain notes into quick ones.
+    const from = y1 + 2;
+    const to = Math.min(mask.h, y1 + Math.round(height * 0.75));
+    const found = [];
+    for (let y = from; y < to; y += 1) {
+      let start = null;
+      for (let x = 0; x <= mask.w; x += 1) {
+        const on = x < mask.w && mask.ink[y * mask.w + x];
+        if (on && start === null) start = x;
+        else if (!on && start !== null) {
+          if (x - start >= height) found.push({ y, x0: start, x1: x });
+          start = null;
+        }
+      }
+    }
+    return found;
+  }
+
+  // Small marks directly above or below a number are its octave dots.
+  function scanOctaveMarks(mask, glyph) {
+    const height = glyph.box.y1 - glyph.box.y0;
+    const width = glyph.box.x1 - glyph.box.x0;
+    const reach = Math.max(3, Math.round(height * 0.7));
+    const cx = Math.round((glyph.box.x0 + glyph.box.x1) / 2);
+    const half = Math.max(1, Math.round(width * 0.32));
+    const wide = Math.max(3, Math.round(width * 1.4));
+    const scan = (from, to) => {
+      let ink = 0;
+      for (let y = Math.max(0, from); y < Math.min(mask.h, to); y += 1) {
+        // Skip beam lines: ink that keeps going well past this number is an underline,
+        // not a dot, and counting it made almost every note look low.
+        let spread = 0;
+        for (let x = cx - wide; x <= cx + wide; x += 1) {
+          if (x >= 0 && x < mask.w) spread += mask.ink[y * mask.w + x];
+        }
+        if (spread > width * 1.3) continue;
+        for (let x = cx - half; x <= cx + half; x += 1) {
+          if (x >= 0 && x < mask.w) ink += mask.ink[y * mask.w + x];
+        }
+      }
+      return ink;
+    };
+    // The row band is trimmed, so a number's ink can continue past the box we measured.
+    // Follow it to its real top and bottom, or the dot search reads the number itself.
+    const rowHasInk = y => {
+      if (y < 0 || y >= mask.h) return false;
+      for (let x = glyph.box.x0; x < glyph.box.x1; x += 1) if (mask.ink[y * mask.w + x]) return true;
+      return false;
+    };
+    let top = glyph.box.y0;
+    while (rowHasInk(top - 1)) top -= 1;
+    let bottom = glyph.box.y1 - 1;
+    while (rowHasInk(bottom + 1)) bottom += 1;
+    const above = scan(top - reach, top - 1);
+    const below = scan(bottom + 2, bottom + 1 + reach);
+    // A dot is a small compact blob. Too much ink means a neighbouring number.
+    const floor = 2;
+    const ceiling = Math.max(8, half * 5);
+    const upOk = above >= floor && above <= ceiling;
+    const downOk = below >= floor && below <= ceiling;
+    if (upOk && above >= below) return 'up';
+    if (downOk) return 'down';
+    return '';
+  }
+
+  // A jianpu row spells everything with the same seven shapes, so nearly every number on
+  // it has a twin. A row of lyrics almost never repeats a character. That difference is
+  // what separates the two, and unlike width or bar lines it does not care what language
+  // the words are in.
+  function scanRowRepeats(shapes) {
+    if (shapes.length < 4) return true;
+    let twins = 0;
+    shapes.forEach(shape => {
+      if (shapes.some(other => other !== shape && scanCosine(shape.vector, other.vector) > 0.75)) twins += 1;
+    });
+    return twins / shapes.length >= 0.55;
+  }
+
+  function scanImage(image) {
+    const mask = scanInkMask(image);
+    const rows = scanBands(mask, 8, 0.10);
+    if (!rows.length) return null;
+    // Note rows and lyric rows alternate. Lyric glyphs are usually as wide as they are
+    // tall; digits are narrower. That trims the obvious ones before the shape test.
+    const measured = rows.map(band => {
+      const [y0, y1] = band;
+      const inner = Math.max(1, Math.round((y1 - y0) * 0.12));
+      const widths = scanColumns(mask, y0 + inner, y1 - inner).map(([a, b]) => b - a);
+      widths.sort((a, b) => a - b);
+      const midWidth = widths.length ? widths[Math.floor(widths.length / 2)] : 0;
+      return { band, count: widths.length, ratio: midWidth / Math.max(1, y1 - y0) };
+    }).filter(row => row.count >= 3);
+    const candidates = measured.filter(row => row.ratio < 0.95).map(row => row.band);
+
+    const readRow = (band, keep) => {
+      const [y0, y1] = band;
+      const inner = Math.max(1, Math.round((y1 - y0) * 0.12));
+      const digitBottom = y1 - inner;
+      const bars = scanBarColumns(mask, y0 + inner, digitBottom);
+      const barCols = new Set();
+      bars.forEach(([bx0, bx1]) => { for (let x = bx0 - 1; x <= bx1 + 1; x += 1) barCols.add(x); });
+      const shapes = scanColumns(mask, y0 + inner, digitBottom, barCols)
+        .map(([x0, x1]) => scanGlyphVector(mask, { x0, x1, y0: y0 + inner, y1: digitBottom }))
+        .filter(Boolean);
+      if (!shapes.length) return null;
+      // Octave and augmentation dots are the same shape as a digit but a fraction of the
+      // size, so judge each glyph against the typical glyph height on its own row.
+      const tall = shapes.map(shape => shape.height).sort((a, b) => a - b);
+      const midHeight = tall[Math.floor(tall.length / 2)];
+      const wide = shapes.map(shape => shape.width).sort((a, b) => a - b);
+      const midWidth = wide[Math.floor(wide.length / 2)] || 1;
+      const marked = shapes.map(shaped => {
+        const ratio = shaped.width / Math.max(1, shaped.height);
+        // A bar line is a thin full-height stroke; a dot is small in both directions; a
+        // beam is wide and flat. Everything else is treated as a number.
+        const kind = (shaped.height < midHeight * 0.55 && shaped.width < midWidth * 0.7) ? 'dot'
+          : ratio > 2.6 ? 'beam'
+          : shaped.width < Math.max(2, midWidth * 0.35) ? 'speck'
+          : 'digit';
+        return { ...shaped, kind };
+      });
+      const numbers = marked.filter(shape => shape.kind === 'digit');
+      if (keep && !scanRowRepeats(numbers)) return null;
+      return { band, bars, marked, y0, y1, inner, digitBottom };
+    };
+
+    const build = keep => {
+      const glyphs = [];
+      const noteRows = [];
+      candidates.forEach(band => {
+        const read = readRow(band, keep);
+        if (!read) return;
+        const rowIndex = noteRows.length;
+        noteRows.push(read.band);
+        read.bars.forEach(([bx0, bx1]) => glyphs.push({
+          box: { x0: bx0, x1: bx1 + 1, y0: read.y0 + read.inner, y1: read.digitBottom },
+          width: bx1 - bx0 + 1, height: read.digitBottom - (read.y0 + read.inner), vector: null,
+          row: rowIndex, kind: 'bar', x: bx0, band: read.band, octave: '', beams: 0
+        }));
+        read.marked.forEach(shape => glyphs.push({
+          ...shape, row: rowIndex, x: shape.box.x0, band: read.band, octave: '', beams: 0
+        }));
+        // Read the beams under this row and the octave dots around each number.
+        const runs = scanBeamRuns(mask, read.y0 + read.inner, read.digitBottom);
+        const levels = [];
+        runs.forEach(run => {
+          let level = levels.find(l => Math.abs(l.y - run.y) <= 1);
+          if (!level) { level = { y: run.y, runs: [] }; levels.push(level); }
+          level.runs.push(run);
+        });
+        levels.sort((a, b) => a.y - b.y);
+        glyphs.filter(g => g.row === rowIndex && g.kind === 'digit').forEach(glyph => {
+          const mid = (glyph.box.x0 + glyph.box.x1) / 2;
+          // Two beams is the shortest note this app writes, so a third line found under
+          // a number is noise rather than a reason to give up on it.
+          glyph.beams = Math.min(2, levels.filter(level => level.runs.some(run => run.x0 <= mid && run.x1 >= mid)).length);
+          glyph.octave = scanOctaveMarks(mask, glyph);
+        });
+      });
+      return { glyphs, noteRows };
+    };
+
+    // If the shape test rejects everything, the page is unusual rather than wrong, so
+    // fall back to reading every candidate row.
+    let built = build(true);
+    if (!built.noteRows.length) built = build(false);
+    const digits = built.glyphs.filter(g => g.kind === 'digit');
+    return { mask, noteRows: built.noteRows, glyphs: built.glyphs, digits, groups: scanCluster(digits) };
+  }
+
+  function scanSequenceFromGroups(result) {
+    if (!result) return '';
+    const labelFor = new Map();
+    result.groups.forEach(group => group.members.forEach(m => labelFor.set(m, group.label)));
+    const parts = [];
+    result.glyphs
+      .slice()
+      .sort((a, b) => (a.row - b.row) || (a.x - b.x))
+      .forEach(glyph => {
+        if (glyph.kind === 'beam') return;
+        if (glyph.kind === 'bar') { parts.push('|'); return; }
+        const label = labelFor.get(glyph);
+        if (!label || label === 'skip') return;
+        // A rest has no pitch, so an octave dot or a beam beside it was read from
+        // something else on the page. Keep it plain.
+        if (label === '0' || label === '-') { parts.push(label); return; }
+        // Octave dots and beams found beside the glyph become the mark and the length.
+        const marked = applyOctaveMark(label, glyph.octave || '');
+        parts.push(glyph.beams === 2 ? `${marked}=` : glyph.beams === 1 ? `${marked}_` : marked);
+      });
+    // Repeat signs and the bar at the end of one line meeting the bar at the start of
+    // the next both read as several bars in a row. One bar line is what was meant.
+    const tidy = [];
+    parts.forEach(token => {
+      if (token === '|' && (tidy.length === 0 || tidy[tidy.length - 1] === '|')) return;
+      tidy.push(token);
+    });
+    while (tidy.length && tidy[tidy.length - 1] === '|') tidy.pop();
+    return tidy.join(' ').trim();
+  }
+
+
+  // ---- scanner UI ----
+  function renderScanGroups() {
+    const result = state.scanResult;
+    if (!els.scanGroups) return;
+    els.scanGroups.innerHTML = '';
+    if (!result) return;
+    result.groups.forEach((group, groupIndex) => {
+      const row = document.createElement('div');
+      row.className = 'scan-group';
+      const sample = document.createElement('canvas');
+      sample.className = 'scan-sample';
+      const member = group.sample || group.members[0];
+      const size = 34;
+      sample.width = size; sample.height = size;
+      const ctx = sample.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = '#111827';
+      const { mask } = result;
+      const bw = member.box.x1 - member.box.x0, bh = member.box.y1 - member.box.y0;
+      const scale = Math.min((size - 6) / bw, (size - 6) / bh);
+      for (let y = member.box.y0; y < member.box.y1; y += 1) {
+        for (let x = member.box.x0; x < member.box.x1; x += 1) {
+          if (!mask.ink[y * mask.w + x]) continue;
+          ctx.fillRect(3 + (x - member.box.x0) * scale, 3 + (y - member.box.y0) * scale,
+            Math.max(1, scale), Math.max(1, scale));
+        }
+      }
+      const count = document.createElement('small');
+      count.textContent = `${group.members.length}×`;
+      const picker = document.createElement('div');
+      picker.className = 'scan-picker';
+      ['1', '2', '3', '4', '5', '6', '7', '0'].forEach(digit => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = digit;
+        button.className = group.label === digit ? 'active' : '';
+        button.addEventListener('click', () => {
+          group.label = group.label === digit ? '' : digit;
+          renderScanGroups();
+          updateScanApply();
+        });
+        picker.appendChild(button);
+      });
+      const skip = document.createElement('button');
+      skip.type = 'button';
+      skip.className = `scan-skip${group.label === 'skip' ? ' active' : ''}`;
+      skip.textContent = 'Not a note';
+      skip.addEventListener('click', () => {
+        group.label = group.label === 'skip' ? '' : 'skip';
+        renderScanGroups();
+        updateScanApply();
+      });
+      picker.appendChild(skip);
+      row.append(sample, count, picker);
+      els.scanGroups.appendChild(row);
+    });
+  }
+
+  function updateScanApply() {
+    const result = state.scanResult;
+    const named = result ? result.groups.filter(g => g.label && g.label !== 'skip').length : 0;
+    const total = result ? result.groups.length : 0;
+    if (els.scanApplyBtn) els.scanApplyBtn.disabled = named === 0;
+    if (els.scanStatus && result) {
+      els.scanStatus.textContent = `${result.digits.length} numbers found in ${result.noteRows.length} rows, `
+        + `grouped into ${total} shapes. ${named} named.`;
+    }
+  }
+
+  function drawScanPreview(result) {
+    const canvas = els.scanCanvas;
+    if (!canvas || !result) return;
+    const { mask } = result;
+    canvas.width = mask.w; canvas.height = mask.h;
+    const ctx = canvas.getContext('2d');
+    const img = ctx.createImageData(mask.w, mask.h);
+    for (let p = 0; p < mask.ink.length; p += 1) {
+      const v = mask.ink[p] ? 20 : 250;
+      img.data[p * 4] = v; img.data[p * 4 + 1] = v; img.data[p * 4 + 2] = v; img.data[p * 4 + 3] = 255;
+    }
+    ctx.putImageData(img, 0, 0);
+    ctx.lineWidth = 1;
+    result.glyphs.forEach(g => {
+      ctx.strokeStyle = g.kind === 'digit' ? 'rgba(13,148,136,.85)'
+        : g.kind === 'bar' ? 'rgba(167,139,250,.9)' : 'rgba(251,191,36,.9)';
+      ctx.strokeRect(g.box.x0 - 0.5, g.box.y0 - 0.5, g.box.x1 - g.box.x0 + 1, g.box.y1 - g.box.y0 + 1);
+    });
+  }
+
+  async function handleScanFile(file) {
+    if (!file) return;
+    if (els.scanStatus) els.scanStatus.textContent = 'Reading image...';
+    if (els.scanStage) els.scanStage.hidden = false;
+    try {
+      const url = URL.createObjectURL(file);
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('could not read image'));
+        img.src = url;
+      });
+      const result = scanImage(image);
+      URL.revokeObjectURL(url);
+      if (!result || !result.digits.length) {
+        state.scanResult = null;
+        if (els.scanStatus) els.scanStatus.textContent = 'No numbers found. Try a straighter or higher contrast image.';
+        updateScanApply();
+        return;
+      }
+      state.scanResult = result;
+      if (typeof globalThis !== 'undefined') globalThis.__lastScan__ = result;
+      drawScanPreview(result);
+      renderScanGroups();
+      updateScanApply();
+    } catch (error) {
+      if (els.scanStatus) els.scanStatus.textContent = `Could not scan that image: ${error.message}`;
+    }
   }
 
   function insertTokenAtCursor(token) {
@@ -6310,6 +7281,335 @@
     renderWalkthroughStep();
   }
 
+  /* ------------------------------------------------------------------ */
+  /* Song tape and Perfect / Good / Miss words (shared with Ethereal      */
+  /* Handpan): the notes scroll along the bottom of the stage.            */
+  /* ------------------------------------------------------------------ */
+
+  const tape = {
+    notes: null, key: '', events: [], pxPerBeat: 60, width: 0, playheadX: 0, top: 0, lastX: null,
+    visible: false, judgeTimer: 0, quality: new Map(), passiveIdx: 0, passiveAt: 0, armedAt: Infinity, levelFilter: 'all'
+  };
+  const tapeEls = {};
+
+  function initTape() {
+    ['noteTape', 'noteTapeTrack', 'noteTapeJudge', 'stageJudge', 'stageSongName', 'difficultyFilter', 'resultSparkles']
+      .forEach(id => { tapeEls[id] = $(id); });
+    tapeEls.difficultyFilter?.addEventListener('click', event => {
+      const chip = event.target.closest('[data-level]');
+      if (!chip) return;
+      tape.levelFilter = chip.dataset.level;
+      tapeEls.difficultyFilter.querySelectorAll('[data-level]').forEach(button => button.classList.toggle('active', button === chip));
+      renderSongList();
+    });
+  }
+
+  function songMatchesLevel(song) {
+    if (tape.levelFilter === 'all') return true;
+    const level = songDifficulty(song).level;
+    return tape.levelFilter === 'hard' ? level === 'hard' || level === 'expert' : level === tape.levelFilter;
+  }
+
+  function resetTapeRun() {
+    tape.quality.clear();
+    tape.passiveIdx = 0;
+    tape.passiveAt = 0;
+    tape.armedAt = Infinity;
+  }
+
+  function tapeWanted() {
+    return state.visualMode === 'radial' && state.mode !== 'tuner' && state.parsedNotes.length > 0;
+  }
+
+  function syncTapeVisibility() {
+    if (tapeWanted() !== tape.visible) resizeCanvas();
+  }
+
+  function buildTape() {
+    const notes = state.parsedNotes;
+    tape.notes = notes;
+    tape.key = state.instrumentVersion || '';
+    tape.events = [];
+    tape.lastX = null;
+    const track = tapeEls.noteTapeTrack;
+    if (!track) return;
+    track.replaceChildren();
+    if (!notes.length) return;
+    const groups = [];
+    notes.forEach(note => {
+      const last = groups[groups.length - 1];
+      if (last && Math.abs(last.beat - note.beat) < 1e-6) last.notes.push(note);
+      else groups.push({ beat: note.beat, durBeats: note.durationBeats || 1, bar: note.bar, notes: [note] });
+    });
+    let minGap = Infinity;
+    for (let i = 1; i < groups.length; i += 1) {
+      const gap = groups[i].beat - groups[i - 1].beat;
+      if (gap > 1e-3) minGap = Math.min(minGap, gap);
+    }
+    if (!Number.isFinite(minGap)) minGap = 1;
+    const ppb = Math.max(34, Math.min(96, 25 / minGap));
+    tape.pxPerBeat = ppb;
+    const frag = document.createDocumentFragment();
+    const totalBeats = Math.ceil(state.totalBeats || groups[groups.length - 1].beat + 1);
+    for (let beat = 0; beat <= totalBeats; beat += 1) {
+      const tick = document.createElement('i');
+      tick.className = 'tape-beat';
+      tick.style.left = `${(beat * ppb).toFixed(1)}px`;
+      frag.appendChild(tick);
+    }
+    let lastBar = 0;
+    groups.forEach(group => {
+      if (group.bar !== lastBar) {
+        const bar = document.createElement('i');
+        bar.className = 'tape-bar';
+        bar.style.left = `${(group.beat * ppb).toFixed(1)}px`;
+        bar.dataset.bar = String(group.bar);
+        frag.appendChild(bar);
+        lastBar = group.bar;
+      }
+      const sorted = group.notes.slice().sort((a, b) => (b.midi || 0) - (a.midi || 0));
+      const col = document.createElement('span');
+      const chordClass = sorted.length > 1 ? ` chord chord-${Math.min(3, sorted.length)}` : '';
+      col.className = `tape-ev${chordClass}`;
+      col.style.left = `${(group.beat * ppb).toFixed(1)}px`;
+      const chips = sorted.map(note => {
+        const octave = splitOctaveMark(note.label);
+        const chip = document.createElement('b');
+        const base = octaveMarkClass(octave);
+        chip.className = base;
+        chip.textContent = octave.base;
+        chip.style.setProperty('--c', note.color || '#e2e8f0');
+        col.appendChild(chip);
+        return { note, chip, base, cls: base };
+      });
+      frag.appendChild(col);
+      tape.events.push({ beat: group.beat, durBeats: group.durBeats, col, chips, chordClass, cls: col.className });
+    });
+    track.appendChild(frag);
+  }
+
+  function placeTape(width, height) {
+    const show = tapeWanted();
+    tape.visible = show;
+    if (!tapeEls.noteTape) return;
+    tapeEls.noteTape.hidden = !show;
+    if (!show) { tape.top = 0; return; }
+    const tapeH = width <= 760 ? 46 : 52;
+    const stage = els.noteStage.getBoundingClientRect();
+    let controlsTop = height;
+    [els.focusModeBtn, tapeEls.stageSongName].forEach(el => {
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (!r.width || !r.height) return;
+      const top = r.top - stage.top;
+      if (top > height * 0.55) controlsTop = Math.min(controlsTop, top);
+    });
+    const bottomGap = controlsTop < height ? height - controlsTop + 8 : 12;
+    const top = Math.round(height - bottomGap - tapeH);
+    tapeEls.noteTape.style.top = `${top}px`;
+    tapeEls.noteTape.style.height = `${tapeH}px`;
+    tape.top = top;
+    tape.width = Math.max(120, width - 24);
+    tape.playheadX = Math.round(tape.width * 0.3);
+    tapeEls.noteTape.style.setProperty('--playhead', `${tape.playheadX}px`);
+    tape.lastX = null;
+  }
+
+  // The drum moves up (and only shrinks if it must) so the tape fits underneath.
+  function fitDrumAboveTape(geometry, width) {
+    if (!tape.visible || !tape.top) return geometry;
+    const ext = 0.53;
+    const maxBottom = tape.top - 6;
+    if (geometry.cy + geometry.drumSize * ext <= maxBottom) return geometry;
+    const topReserve = width <= 900 ? 60 : 18;
+    const drumSize = Math.max(170, Math.min(geometry.drumSize, (maxBottom - topReserve) / (ext * 2)));
+    return { drumSize, scale: drumSize / STAGE_DRUM_BASE, cx: geometry.cx, cy: maxBottom - drumSize * ext };
+  }
+
+  function tapeIndexAt(beat) {
+    let lo = 0;
+    let hi = tape.events.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (tape.events[mid].beat < beat) lo = mid + 1; else hi = mid;
+    }
+    return lo;
+  }
+
+  function tapeResult(note) {
+    if (state.mode === 'wait') {
+      if (state.hitNotes.has(note.id)) return state.missedNoteIds.has(note.id) ? 'good' : 'hit';
+      return state.missedNoteIds.has(note.id) ? 'miss' : '';
+    }
+    if (state.mode === 'practice') return tape.quality.get(note.id) || (state.missedNoteIds.has(note.id) && !state.hitNotes.has(note.id) ? 'miss' : '');
+    return '';
+  }
+
+  function updateTape() {
+    if (!tape.visible || !state.parsedNotes.length) return;
+    if (tape.notes !== state.parsedNotes) buildTape();
+    if (!tape.events.length || !state.secondsPerBeat) return;
+    const ppb = tape.pxPerBeat;
+    const beat = state.currentTime / state.secondsPerBeat;
+    const x = tape.playheadX - beat * ppb;
+    if (tape.lastX === null || Math.abs(x - tape.lastX) > 0.05) {
+      tapeEls.noteTapeTrack.style.transform = `translate3d(${x.toFixed(1)}px,0,0)`;
+      tape.lastX = x;
+    }
+    const waitingNote = state.mode === 'wait' ? state.parsedNotes[state.waitingIndex] : null;
+    const from = Math.max(0, tapeIndexAt(beat - tape.playheadX / ppb - 2));
+    const to = Math.min(tape.events.length, tapeIndexAt(beat + (tape.width - tape.playheadX) / ppb + 2));
+    for (let i = from; i < to; i += 1) {
+      const entry = tape.events[i];
+      const hold = Math.min(Math.max(0.3, Math.min(0.9, entry.durBeats * 0.85)), 17 / ppb);
+      const waiting = waitingNote && Math.abs(waitingNote.beat - entry.beat) < 1e-6;
+      let cls = 'tape-ev';
+      if (waiting || (beat >= entry.beat - 0.06 && beat < entry.beat + hold)) cls += ' now';
+      else if (beat >= entry.beat) cls += ' past';
+      cls += entry.chordClass;
+      if (cls !== entry.cls) {
+        entry.col.className = cls;
+        entry.cls = cls;
+      }
+      entry.chips.forEach(chip => {
+        const result = tapeResult(chip.note);
+        const c = result ? `${chip.base} r-${result}`.trim() : chip.base;
+        if (c !== chip.cls) {
+          chip.chip.className = c;
+          chip.cls = c;
+        }
+      });
+    }
+  }
+
+  // Practice: notes that slip past without being played count as a Miss, from the first note.
+  function markPassiveMisses() {
+    if (state.mode !== 'practice') return;
+    const notes = state.parsedNotes;
+    const windowSize = .42 / state.speed;
+    if (state.currentTime < tape.passiveAt - 0.05) tape.passiveIdx = 0;
+    tape.passiveAt = state.currentTime;
+    let missed = false;
+    while (tape.passiveIdx < notes.length && notes[tape.passiveIdx].time < state.currentTime - windowSize) {
+      const note = notes[tape.passiveIdx];
+      if (!state.hitNotes.has(note.id) && !tape.quality.has(note.id)) {
+        tape.quality.set(note.id, 'miss');
+        missed = true;
+      }
+      tape.passiveIdx += 1;
+    }
+    if (missed) {
+      state.streak = 0;
+      tapeJudge('miss');
+      updatePracticeUI();
+    }
+  }
+
+  const JUDGE_TEXT = { perfect: 'Perfect', good: 'Good', hit: 'Nice', miss: 'Miss', wrong: 'Wrong note' };
+
+  function tapeJudge(kind) {
+    if (!JUDGE_TEXT[kind] || state.mode === 'tuner' || state.mode === 'demo') return;
+    const good = kind === 'perfect' || kind === 'good' || kind === 'hit';
+    const html = `${JUDGE_TEXT[kind]}${good && state.streak >= 3 ? ` <em>×${state.streak}</em>` : ''}`;
+    [tapeEls.noteTapeJudge, tapeEls.stageJudge].forEach(el => {
+      if (!el) return;
+      el.innerHTML = html;
+      el.dataset.kind = kind;
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    });
+  }
+
+  // Session complete: a soft burst of glowing particles around the tick, then a few
+  // sparkles that keep twinkling while the card is open.
+  function celebrateResults(canvas, strength = 1) {
+    if (!canvas || !canvas.getContext) return;
+    const dialog = canvas.closest('dialog');
+    const card = canvas.parentElement;
+    const icon = card.querySelector('.result-icon');
+    const ctx = canvas.getContext('2d');
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = canvas.clientWidth || card.clientWidth;
+    const h = canvas.clientHeight || 160;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const cx = w / 2;
+    const cy = icon ? icon.offsetTop + icon.offsetHeight / 2 - canvas.offsetTop : 55;
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const colors = ['#5eead4', '#99f6e4', '#c4b5fd', '#a78bfa', '#fbbf24', '#38bdf8', '#f9a8d4'];
+    const level = Math.max(0.25, Math.min(1, strength));
+    const particles = [];
+    const burst = reduced ? 0 : Math.round(34 + 46 * level);
+    for (let i = 0; i < burst; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 55 + Math.random() * 150;
+      particles.push({
+        x: cx + Math.cos(angle) * 22, y: cy + Math.sin(angle) * 22,
+        vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed * 0.8 - 18,
+        life: 1.1 + Math.random() * 1.2, age: 0, size: 1 + Math.random() * 2.4,
+        color: colors[(Math.random() * colors.length) | 0], spin: Math.random() * 6
+      });
+    }
+    const sparkles = Array.from({ length: reduced ? 6 : 14 }, (_, i) => ({
+      angle: (i / (reduced ? 6 : 14)) * Math.PI * 2 + Math.random() * 0.4,
+      radius: 40 + Math.random() * 34, size: 0.8 + Math.random() * 1.6,
+      phase: Math.random() * Math.PI * 2, speed: 1.4 + Math.random() * 1.8,
+      color: colors[(Math.random() * colors.length) | 0]
+    }));
+    cancelAnimationFrame(canvas._celebrateRaf || 0);
+    let last = performance.now();
+    const started = last;
+    const tick = now => {
+      if (!canvas.isConnected || (dialog && !dialog.open)) { ctx.clearRect(0, 0, w, h); return; }
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const t = (now - started) / 1000;
+      ctx.clearRect(0, 0, w, h);
+      ctx.globalCompositeOperation = 'lighter';
+      const drag = Math.pow(0.18, dt);
+      particles.forEach(p => {
+        p.age += dt;
+        if (p.age >= p.life) return;
+        p.vx *= drag; p.vy = p.vy * drag - 10 * dt;
+        p.x += p.vx * dt; p.y += p.vy * dt;
+        const k = 1 - p.age / p.life;
+        const r = p.size * (0.6 + 0.4 * k);
+        const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, r * 4);
+        glow.addColorStop(0, p.color);
+        glow.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.globalAlpha = k * 0.55;
+        ctx.fillStyle = glow;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * 4, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = k;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(p.x, p.y, r * 0.55, 0, Math.PI * 2); ctx.fill();
+      });
+      const fadeIn = Math.min(1, t / 0.6);
+      sparkles.forEach(s => {
+        const a = s.angle + t * 0.12;
+        const x = cx + Math.cos(a) * s.radius * 1.35;
+        const y = cy + Math.sin(a) * s.radius * 0.62;
+        const tw = 0.5 + 0.5 * Math.sin(t * s.speed + s.phase);
+        const size = s.size * (0.6 + tw);
+        ctx.globalAlpha = fadeIn * (0.25 + 0.65 * tw);
+        ctx.strokeStyle = s.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x - size * 2.2, y); ctx.lineTo(x + size * 2.2, y);
+        ctx.moveTo(x, y - size * 2.2); ctx.lineTo(x, y + size * 2.2);
+        ctx.stroke();
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(x, y, size * 0.5, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.globalAlpha = 1;
+      ctx.globalCompositeOperation = 'source-over';
+      canvas._celebrateRaf = requestAnimationFrame(tick);
+    };
+    canvas._celebrateRaf = requestAnimationFrame(tick);
+  }
+
   function formatTime(seconds) {
     const s = Math.max(0, Math.round(seconds));
     return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -6402,9 +7702,36 @@
       seekToTime((Number(els.progress.value) / 1000) * state.duration);
     });
     document.querySelectorAll('.segment').forEach(btn => btn.addEventListener('click', () => {
-      setMode(btn.dataset.mode);
-      maybeStartModeWalkthrough(btn.dataset.mode);
+      const mode = btn.dataset.mode === 'practice' && state.waitPref ? 'wait' : btn.dataset.mode;
+      setMode(mode);
+      maybeStartModeWalkthrough(mode);
     }));
+    els.waitToggle?.addEventListener('change', () => {
+      state.waitPref = els.waitToggle.checked;
+      try { localStorage.setItem(STORAGE_WAIT, state.waitPref ? '1' : '0'); } catch {}
+      if (state.mode === 'practice' || state.mode === 'wait') {
+        const mode = state.waitPref ? 'wait' : 'practice';
+        setMode(mode);
+        maybeStartModeWalkthrough(mode);
+      }
+    });
+    els.stopBtn?.addEventListener('click', () => {
+      stopPlayback(true);
+      if (state.focusMode && window.innerWidth <= 760) setFocusMode(false);
+    });
+    els.guideBtn?.addEventListener('click', () => {
+      state.guide = !state.guide;
+      try { localStorage.setItem(STORAGE_GUIDE, state.guide ? '1' : '0'); } catch {}
+      if (!state.guide) clearTimeout(state.waitHintTimer);
+      if (state.playing && state.mode === 'practice') {
+        cancelFutureScheduledAudio();
+        state.lastScheduledIndex = state.parsedNotes.findIndex(n => n.time >= state.currentTime - .02) - 1;
+      }
+      updateTransportUI();
+      showToast(state.guide ? 'Song sound on: the app plays the song quietly while you practise.' : 'Song sound off: you hear only your own notes.', 'success');
+    });
+    setupInstallButton();
+    bindTapeScrub();
     document.querySelectorAll('.view-segment').forEach(btn => btn.addEventListener('click', () => setVisualMode(btn.dataset.view)));
     els.mobileViewToggleBtn?.addEventListener('click', () => {
       setVisualMode(state.visualMode === 'radial' ? 'lanes' : 'radial');
@@ -6414,6 +7741,9 @@
       els.sequenceInput.addEventListener(eventName, rememberSequenceSelection);
     });
     els.sequenceInput.addEventListener('click', placeSequenceCaretFromBackdropPoint);
+    ['click', 'select', 'keyup', 'mouseup'].forEach(eventName => {
+      els.sequenceInput.addEventListener(eventName, syncTimingSelectionFromText);
+    });
     els.sequenceInput.addEventListener('input', () => {
       normalizeSequenceInputValue();
       const shortcutIndex = timingShortcutIndexBeforeCaret();
@@ -6432,9 +7762,23 @@
       els.sequenceBackdrop.scrollLeft = els.sequenceInput.scrollLeft;
     }, { passive: true });
     els.appendChordBtn?.addEventListener('click', prepareChordAtCursor);
-    els.appendRestBtn?.addEventListener('click', () => insertTokenAtCursor('-'));
+    // A rest is a 0. The dash next to it in the guide is a hold, which is a different
+    // thing, and this button used to insert one of those.
+    els.appendRestBtn?.addEventListener('click', () => insertTokenAtCursor('0'));
     els.appendBarBtn.addEventListener('click', () => insertTokenAtCursor('|'));
     els.copySequenceBtn?.addEventListener('click', copySequenceText);
+    // Paste a song back in the same shape Copy text writes it out, dashes and all.
+    els.sequenceInput?.addEventListener('paste', event => {
+      const pasted = event.clipboardData?.getData('text/plain') || '';
+      if (!looksLikeTextJianpu(pasted)) return;
+      event.preventDefault();
+      const { sequence, dotted } = importJianpuText(pasted);
+      if (!sequence) return;
+      loadSequenceIntoEditor(sequence, dotted);
+      queueDraftSave();
+      const count = state.editorTimeline.filter(item => item.core !== '|').length;
+      showToast(`Read ${count} notes, with their lengths, from the pasted song.`, 'success');
+    });
     els.exportSheetBtn?.addEventListener('click', exportSheetPdf);
     els.discardDraftBtn?.addEventListener('click', () => {
       clearDraft();
@@ -6462,6 +7806,38 @@
       // Stops shift-click from dragging a text selection across the sheet.
       if (event.shiftKey) event.preventDefault();
     });
+    els.scanSheetBtn?.addEventListener('click', () => {
+      state.scanResult = null;
+      if (els.scanGroups) els.scanGroups.innerHTML = '';
+      if (els.scanStage) els.scanStage.hidden = true;
+      if (els.scanStatus) els.scanStatus.textContent = '';
+      updateScanApply();
+      els.scanDialog?.showModal();
+    });
+    els.scanFile?.addEventListener('change', () => handleScanFile(els.scanFile.files?.[0]));
+    ['dragenter', 'dragover'].forEach(name => els.scanDrop?.addEventListener(name, event => {
+      event.preventDefault();
+      els.scanDrop.classList.add('is-over');
+    }));
+    ['dragleave', 'drop'].forEach(name => els.scanDrop?.addEventListener(name, event => {
+      event.preventDefault();
+      els.scanDrop.classList.remove('is-over');
+    }));
+    els.scanDrop?.addEventListener('drop', event => {
+      handleScanFile(event.dataTransfer?.files?.[0]);
+    });
+    els.scanApplyBtn?.addEventListener('click', () => {
+      const sequence = scanSequenceFromGroups(state.scanResult);
+      if (!sequence) { showToast('Name at least one shape first.', 'warning'); return; }
+      // Drop any half-finished draft first, otherwise openEditor restores it over the top
+      // of the scan.
+      clearDraft();
+      els.scanDialog?.close();
+      openEditor(null);
+      loadSequenceIntoEditor(sequence);
+      queueDraftSave();
+      showToast(`Loaded ${state.editorTimeline.filter(i => i.core !== '|').length} notes. Check them against the image before saving.`, 'success');
+    });
     els.timingRangeBtn?.addEventListener('click', () => {
       if (state.editorTimingSelectionIndex < 0) return;
       state.editorRangeSelectArmed = !state.editorRangeSelectArmed;
@@ -6474,12 +7850,21 @@
       const index = Number(token.dataset.timelineIndex);
       const anchor = state.editorTimingSelectionIndex;
       if ((event.shiftKey || state.editorRangeSelectArmed) && anchor >= 0) {
-        const from = Math.min(anchor, index);
-        const to = Math.max(anchor, index);
-        const range = [];
-        for (let i = from; i <= to; i += 1) range.push(i);
-        setTimingSelection(range, anchor);
-        state.editorRangeSelectArmed = false;
+        const existing = timingSelectionIndices();
+        if (state.editorRangeSelectArmed && existing.length > 1) {
+          // The range is already made. Further taps add or remove single notes, which is
+          // how you pick note 1 and note 3 on a touch screen without a modifier key.
+          const next = new Set(existing);
+          if (next.has(index)) next.delete(index); else next.add(index);
+          setTimingSelection([...next], index);
+        } else {
+          const from = Math.min(anchor, index);
+          const to = Math.max(anchor, index);
+          const range = [];
+          for (let i = from; i <= to; i += 1) range.push(i);
+          setTimingSelection(range, anchor);
+        }
+        // stays armed so you can keep adding; press the button again to finish
       } else if (event.ctrlKey || event.metaKey) {
         state.editorRangeSelectArmed = false;
         const next = new Set(timingSelectionIndices());
@@ -6491,16 +7876,55 @@
       }
       renderTimingEditor();
     });
+    els.timingDotBtn?.addEventListener('click', () => {
+      const indices = timingSelectionIndices();
+      const items = indices.map(i => state.editorTimeline[i]).filter(item => item && item.core !== '|');
+      if (!items.length) return;
+      const removing = items.every(item => isDottedDuration(item.durationBeats));
+      items.forEach(item => {
+        const value = Number(item.durationBeats) || 1;
+        item.durationBeats = removing ? value / 1.5 : value * 1.5;
+      });
+      renderTimingEditor();
+      renderSequenceBackdrop();
+      queueDraftSave();
+      showToast(removing ? 'Dot removed.' : 'Dotted: half as long again.', 'success');
+    });
+    els.timingTieBtn?.addEventListener('click', () => {
+      const chosen = timingSelectionIndices();
+      if (!chosen.length) return;
+      // An arc spans from the first selected note to the last, so a run gets one curve
+      // rather than a separate arc hanging off every note in it. Each note except the
+      // last carries the link to its neighbour, and those links join into one line.
+      const first = Math.min(...chosen);
+      const last = Math.max(...chosen);
+      const span = [];
+      for (let i = first; i < last; i += 1) {
+        if (tieTargetIndex(i) >= 0) span.push(i);
+      }
+      const usable = span.length ? span : timingSelectionIndices().filter(index => tieTargetIndex(index) >= 0);
+      if (!usable.length) return;
+      const turningOn = !usable.every(index => state.editorTimeline[index]?.tie);
+      usable.forEach(index => { state.editorTimeline[index].tie = turningOn; });
+      if (turningOn && state.editorTimeline[last]) state.editorTimeline[last].tie = false;
+      renderTimingEditor();
+      renderSequenceBackdrop();
+      queueDraftSave();
+      showToast(turningOn ? 'Tied: held into the next note.' : 'Tie removed.', 'success');
+    });
     els.timingChoiceGroup?.addEventListener('click', event => {
       const choice = event.target.closest('[data-duration]');
       if (!choice) return;
       const indices = timingSelectionIndices();
       if (!indices.length) return;
-      const duration = Number(choice.dataset.duration);
-      indices.forEach(index => {
-        const item = state.editorTimeline[index];
-        if (item && item.core !== '|') item.durationBeats = duration;
-      });
+      const picked = Number(choice.dataset.duration);
+      const chosenItems = indices.map(index => state.editorTimeline[index]).filter(item => item && item.core !== '|');
+      // Tapping the rhythm a note already has clears it back to Regular, which is why
+      // there is no separate Regular button.
+      const allAlready = chosenItems.length > 0
+        && chosenItems.every(item => Math.abs(Number(item.durationBeats) - picked) < 0.0001);
+      const duration = allAlready ? 1 : picked;
+      chosenItems.forEach(item => { item.durationBeats = duration; });
       syncInputTimingMarkers(indices, duration);
       renderTimingEditor();
       renderSequenceBackdrop();
@@ -6809,6 +8233,12 @@
   }
 
   async function init() {
+    try {
+      state.guide = localStorage.getItem(STORAGE_GUIDE) === '1';
+      state.waitPref = localStorage.getItem(STORAGE_WAIT) === '1';
+    } catch { state.guide = false; state.waitPref = false; }
+    document.body.dataset.mode = state.mode;
+    initTape();
     loadData();
     bindEvents();
     initialisePerformanceDiagnostics();

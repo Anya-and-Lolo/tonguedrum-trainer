@@ -127,6 +127,21 @@ The words Long and Hold are not Jianpu notation terms and are no longer used
 for the timing controls.
 
 
+LISTEN, PRACTICE AND THE SONG TAPE
+
+Listen (it used to be called Demo) plays the song so you can sit back and
+enjoy it. Practice scores your timing, Wait for note waits for every note, and
+Tuner sits on its own to the right of the play modes.
+
+In Drum centre the notes also scroll along the bottom of the stage: a little of
+what you just played on the left and what comes next on the right, chords
+stacked. In Practice and Wait for note each note turns teal (Perfect / Nice),
+violet (Good) or red (Miss), and the same word pops up big at the top of the
+stage. In Focus Mode the song name sits under the tape.
+
+The All / Easy / Medium / Hard chips under Search songs filter the song list.
+
+
 HELP AND WALKTHROUGHS
 
 The main walkthrough introduces the animated song, Demo songs, My songs,
@@ -137,7 +152,7 @@ The Don't show again box always starts empty. Completing a walkthrough does not
 hide it permanently. Select Don't show again or click Skip to stop that
 walkthrough from opening automatically.
 Click ? while inside one of those modes to replay that mode's walkthrough at
-any time. Click ? in Demo to replay the main walkthrough.
+any time. Click ? in Listen to replay the main walkthrough.
 
 
 OPTIONAL PERFORMANCE CHECK
