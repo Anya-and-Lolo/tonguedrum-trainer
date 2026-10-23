@@ -7465,10 +7465,11 @@
     const ext = 0.53;
     const maxBottom = tape.top - 6;
     if (width <= 760) {
-      // Phones: the drum sits centred between the score row and the tape, as large as fits.
+      // Phones: the drum keeps its normal size (so notes flying in from the sides stay
+      // visible) and sits centred between the score row and the tape.
       const top = 64;
       const room = maxBottom - top;
-      const drumSize = Math.max(170, Math.min(Math.max(geometry.drumSize, Math.min(width * 0.94, 440)), (room - 8) / (ext * 2)));
+      const drumSize = Math.max(170, Math.min(geometry.drumSize, (room - 8) / (ext * 2)));
       return { drumSize, scale: drumSize / STAGE_DRUM_BASE, cx: geometry.cx, cy: top + drumSize * ext + Math.max(0, room - drumSize * ext * 2) * 0.55 };
     }
     if (document.body.classList.contains('tablet-fit')) {
