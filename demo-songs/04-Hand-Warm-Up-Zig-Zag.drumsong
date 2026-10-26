@@ -1,0 +1,10 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Hand Warm-up: Zig-zag",
+    "bpm": 84,
+    "sequence": "1 5 2 6 | 3 7 4 1̇ | 1̇ 4 7 3 | 6 2 5 1 |\n1 1̇ 2 7 | 3 6 4 5 | 5 4 6 3 | 7 2 1̇ 1 |\n1+5 - 2+6 - | 3+1̇ - 1 - |",
+    "scaleType": "major",
+    "folder": "demo"
+  }
+}

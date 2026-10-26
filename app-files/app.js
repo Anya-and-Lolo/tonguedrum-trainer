@@ -6,6 +6,10 @@
   const STORAGE_VIEW = 'ethereal-drum-view-v2';
   const STORAGE_GUIDE = 'ethereal-drum-song-sound-v1';
   const STORAGE_WAIT = 'ethereal-drum-wait-pref-v1';
+  const STORAGE_WAIT_STYLE = 'ethereal-drum-wait-style-v1';
+  const STORAGE_ROTATION = 'ethereal-drum-rotation-v1';
+  const STORAGE_PARTICLES = 'ethereal-drum-particles-v1';
+  const STORAGE_EDITOR_DRAFTS = 'ethereal-drum-editor-drafts-v2';
   const STORAGE_EDITOR_PITCH_NAMES = 'ethereal-drum-editor-pitch-names-v1';
   const STORAGE_EDITOR_EXPRESSIVE_TIMING = 'ethereal-drum-editor-expressive-timing-v1';
   const STORAGE_EDITOR_DRAFT = 'ethereal-drum-editor-draft-v1';
@@ -697,6 +701,12 @@
     lastResultMissed: [],
     recommendedSongId: null,
     waitingIndex: 0,
+    waitStyle: 'quiet',
+    drumRotation: 0,
+    particleCanUpgrade: false,
+    micLastNote: -1,
+    micLastAt: 0,
+    focusModeIgnorePop: false,
     focusMode: false,
     libraryTab: 'all',
     editorSongId: null,
@@ -785,7 +795,7 @@
     settingsDialog: $('settingsDialog'), settingsForm: $('settingsForm'), instrumentKeySelect: $('instrumentKeySelect'), scaleTypeSelect: $('scaleTypeSelect'), noteCountSelect: $('noteCountSelect'), rootOctaveSelect: $('rootOctaveSelect'), highDrumOption: $('highDrumOption'), highDrumAvailability: $('highDrumAvailability'), highDrumToggle: $('highDrumToggle'), highDrumAlwaysToggle: $('highDrumAlwaysToggle'), companionTuningSection: $('companionTuningSection'), companionTuningGrid: $('companionTuningGrid'), colourPopover: $('colourPopover'), pitchInfoBtn: $('pitchInfoBtn'), pitchInfo: $('pitchInfo'), noteGuideBody: $('noteGuideBody'), noteGuideOctave: $('noteGuideOctave'), tuningGrid: $('tuningGrid'), saveSettingsBtn: $('saveSettingsBtn'),
     scanSheetBtn: $('scanSheetBtn'), scanDialog: $('scanDialog'), scanDrop: $('scanDrop'), scanFile: $('scanFile'),
     scanCanvas: $('scanCanvas'), scanStatus: $('scanStatus'), scanGroups: $('scanGroups'), scanApplyBtn: $('scanApplyBtn'), scanStage: $('scanStage'),
-    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'), fullscreenBtn: $('fullscreenBtn'), soundWakeBtn: $('soundWakeBtn'), hintPop: $('hintPop'), learnBtn: $('learnBtn'), topNewSongBtn: $('topNewSongBtn'), stageDock: $('stageDock'), dockLoopBtn: $('dockLoopBtn'), dockPlayBtn: $('dockPlayBtn'), dockMetronomeBtn: $('dockMetronomeBtn'), speedCycleBtn: $('speedCycleBtn'), speedCycleValue: $('speedCycleValue'),
+    toast: $('toast'), catalogUpdateBanner: $('catalogUpdateBanner'), catalogUpdateRefreshBtn: $('catalogUpdateRefreshBtn'), catalogUpdateLaterBtn: $('catalogUpdateLaterBtn'), micBtn: $('micBtn'), micStatus: $('micStatus'), stopBtn: $('stopBtn'), guideBtn: $('guideBtn'), installBtn: $('installBtn'), installDialog: $('installDialog'), installHelpText: $('installHelpText'), waitToggle: $('waitToggle'), fullscreenBtn: $('fullscreenBtn'), soundWakeBtn: $('soundWakeBtn'), hintPop: $('hintPop'), learnBtn: $('learnBtn'), topNewSongBtn: $('topNewSongBtn'), stageDock: $('stageDock'), dockLoopBtn: $('dockLoopBtn'), dockPlayBtn: $('dockPlayBtn'), dockMetronomeBtn: $('dockMetronomeBtn'), speedCycleBtn: $('speedCycleBtn'), speedCycleValue: $('speedCycleValue'), rotateLeftBtn: $('rotateLeftBtn'), rotateRightBtn: $('rotateRightBtn'), waitStyleSelect: $('waitStyleSelect'), stagePracticeChips: $('stagePracticeChips'), stageWaitBtn: $('stageWaitBtn'), stageMicBtn: $('stageMicBtn'), allDraftsBtn: $('allDraftsBtn'), draftsDialog: $('draftsDialog'), draftsList: $('draftsList'), draftsEmpty: $('draftsEmpty'), editChoiceDialog: $('editChoiceDialog'), choiceEditBtn: $('choiceEditBtn'), choiceEditNote: $('choiceEditNote'), choiceNewBtn: $('choiceNewBtn'), choiceDraftsBtn: $('choiceDraftsBtn'),
     tourOverlay: $('tourOverlay'), tourShadeTop: $('tourShadeTop'), tourShadeRight: $('tourShadeRight'), tourShadeBottom: $('tourShadeBottom'), tourShadeLeft: $('tourShadeLeft'), tourFocusRing: $('tourFocusRing'), tourCard: $('tourCard'), tourProgress: $('tourProgress'), tourTitle: $('tourTitle'), tourText: $('tourText'), tourSkipBtn: $('tourSkipBtn'), tourBackBtn: $('tourBackBtn'), tourNextBtn: $('tourNextBtn'), tourDontShowAgain: $('tourDontShowAgain'),
     tunerPanel: $('tunerPanel'), tunerLabel: $('tunerLabel'), tunerNoteName: $('tunerNoteName'), tunerCents: $('tunerCents'), tunerMeter: $('tunerMeter'), tunerNeedle: $('tunerNeedle'),
     resultDialog: $('resultDialog'), resultTitle: $('resultTitle'), resultSummary: $('resultSummary'), resultStats: $('resultStats'), resultHitValue: $('resultHitValue'), resultAccuracyValue: $('resultAccuracyValue'), resultStreakValue: $('resultStreakValue'), resultMistakes: $('resultMistakes'), resultRecommendation: $('resultRecommendation'), resultRecommendedBtn: $('resultRecommendedBtn'), resultReplayBtn: $('resultReplayBtn'), practiceMistakesBtn: $('practiceMistakesBtn'), resultNextBtn: $('resultNextBtn')
@@ -2055,12 +2065,14 @@
   }
 
   function getDrumPlacement(noteIndex, count = state.instrument.count) {
-    const cacheKey = `${count}:${noteIndex}`;
+    const turn = state.drumRotation || 0;
+    const cacheKey = `${count}:${noteIndex}:${turn}`;
     if (drumPlacementCache.has(cacheKey)) return drumPlacementCache.get(cacheKey);
     const layout = DRUM_LAYOUTS[count];
-    const placement = layout?.[noteIndex]
+    let placement = layout?.[noteIndex]
       ? { ...layout[noteIndex], manual: true, ring: 'single' }
       : { angle: (360 / count) * noteIndex, ring: 'single', size: 'regular' };
+    if (turn) placement = rotatePlacement(placement, turn);
     drumPlacementCache.set(cacheKey, placement);
     return placement;
   }
@@ -2359,6 +2371,26 @@
     state.visualMonitorLastFrameAt = 0;
   }
 
+  const STORAGE_PARTICLES_AGE = 3 * 24 * 3600 * 1000;
+
+  function rememberedParticleQuality(profileName) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_PARTICLES) || '{}')[profileName];
+      if (!saved || !PARTICLE_QUALITY_ORDER.includes(saved.quality)) return '';
+      // A level settled on long ago gets one more chance to step up.
+      if (Date.now() - (saved.at || 0) > STORAGE_PARTICLES_AGE) return '';
+      return saved.quality;
+    } catch { return ''; }
+  }
+
+  function rememberParticleQuality(profileName, quality) {
+    try {
+      const saved = JSON.parse(localStorage.getItem(STORAGE_PARTICLES) || '{}');
+      saved[profileName] = { quality, at: Date.now() };
+      localStorage.setItem(STORAGE_PARTICLES, JSON.stringify(saved));
+    } catch {}
+  }
+
   function configureParticleQuality(profile, force = false) {
     if (!force && state.particleProfileName === profile.name && state.particleQuality) return;
     state.particleProfileName = profile.name;
@@ -2367,20 +2399,35 @@
     // then the adaptive monitor reduced backdrop work. Starting at the proven baseline
     // keeps the very first walkthrough notes as smooth as later ones.
     state.backgroundRateScale = profile.name === 'phone' ? 2 : profile.name === 'tablet' ? 1.35 : 1;
-    setParticleQuality(profile.particleQualityCap);
+    // Computers start one step lower too and step up once the first seconds run smoothly;
+    // a level this device settled on before is used straight away.
+    const cap = profile.particleQualityCap;
+    const remembered = rememberedParticleQuality(profile.name);
+    let start = cap;
+    if (remembered) start = particleQualityIndex(remembered) < particleQualityIndex(cap) ? remembered : cap;
+    else if (profile.name === 'desktop') start = 'half';
+    state.particleCanUpgrade = !remembered && particleQualityIndex(start) < particleQualityIndex(cap);
+    setParticleQuality(start);
     resetVisualPerformanceMonitor();
   }
 
-  function downgradeParticleQuality() {
+  function downgradeParticleQuality(steps = 1) {
     const current = particleQualityIndex(state.particleQuality);
     if (current <= 0) return false;
-    setParticleQuality(PARTICLE_QUALITY_ORDER[current - 1]);
+    setParticleQuality(PARTICLE_QUALITY_ORDER[Math.max(0, current - steps)]);
+    state.particleCanUpgrade = false;
+    if (state.particleProfileName) rememberParticleQuality(state.particleProfileName, state.particleQuality);
     resetVisualPerformanceMonitor();
     return true;
   }
 
   function monitorVisualPerformance(frameStartedAt, frameFinishedAt, profile) {
     const targetInterval = profile.visualInterval || 16.7;
+    // The first half-second after a start is warm-up (sounds loading); it is not judged.
+    if (frameStartedAt - state.visualMonitorStartedAt < 450) {
+      state.visualMonitorLastFrameAt = frameStartedAt;
+      return;
+    }
     const renderCost = Math.max(0, frameFinishedAt - frameStartedAt);
     const frameGap = state.visualMonitorLastFrameAt ? frameStartedAt - state.visualMonitorLastFrameAt : targetInterval;
     state.visualMonitorLastFrameAt = frameStartedAt;
@@ -2388,11 +2435,12 @@
     state.visualMonitorCostAverage += (renderCost - state.visualMonitorCostAverage) * .08;
     if (renderCost > targetInterval * .62 || frameGap > targetInterval * 2.1) state.visualMonitorSlowSamples += 1;
     const elapsed = frameFinishedAt - state.visualMonitorStartedAt;
-    if (elapsed < 2400 || state.visualMonitorSamples < 48) return;
+    // Judge after about a second, so a struggling computer is only rough for a moment.
+    if (elapsed < 1450 || state.visualMonitorSamples < 24) return;
     const slowRatio = state.visualMonitorSlowSamples / state.visualMonitorSamples;
     const drawingIsHeavy = state.visualMonitorCostAverage > targetInterval * .52;
     if (slowRatio >= .24 || drawingIsHeavy) {
-      const reducedParticles = downgradeParticleQuality();
+      const reducedParticles = downgradeParticleQuality(slowRatio >= .5 ? 2 : 1);
       if (reducedParticles && profile.name === 'desktop' && state.backgroundRateScale < 2) {
         state.backgroundRateScale = 2;
         state.lastBackdropAt = 0;
@@ -2401,6 +2449,17 @@
         state.lastBackdropAt = 0;
         resetVisualPerformanceMonitor(frameFinishedAt);
       } else if (state.backgroundRateScale >= 2) resetVisualPerformanceMonitor(frameFinishedAt);
+    } else if (state.particleCanUpgrade) {
+      if (elapsed < 3500) return;
+      state.particleCanUpgrade = false;
+      if (slowRatio < .05 && state.visualMonitorCostAverage < targetInterval * .3) {
+        const next = PARTICLE_QUALITY_ORDER[particleQualityIndex(state.particleQuality) + 1];
+        if (next && particleQualityIndex(next) <= particleQualityIndex(profile.particleQualityCap)) {
+          setParticleQuality(next);
+          rememberParticleQuality(profile.name, next);
+        }
+      } else rememberParticleQuality(profile.name, state.particleQuality);
+      resetVisualPerformanceMonitor(frameFinishedAt);
     } else resetVisualPerformanceMonitor(frameFinishedAt);
   }
 
@@ -2987,7 +3046,7 @@
       if (noteIsMoving && particleCount) {
         drawFallingNoteParticles(
           ctx, note, x, y, radius, noteHeight, color, alpha,
-          particleCount, profile.particleShadows, particleClock
+          particleCount, profile.particleShadows && state.particleQuality === 'full', particleClock
         );
       }
       const noteSprite = cachedNoteSprite('lane', color, radius * 2, noteHeight, dt < .15 && dt > -.15 ? 24 : 10, profile);
@@ -3383,7 +3442,7 @@
           drawCtx.save();
           drawCtx.globalCompositeOperation = 'lighter';
           drawCtx.shadowColor = target.high ? 'rgba(103,232,249,.9)' : `rgba(${r},${g},${b},.9)`;
-          if (!profile.particleShadows) drawCtx.shadowBlur = 0;
+          if (!(profile.particleShadows && state.particleQuality === 'full')) drawCtx.shadowBlur = 0;
           for (let particle = 0; particle < particleCount; particle++) {
           const template = PARTICLE_TEMPLATE[particle];
           const stream = template.stream;
@@ -3412,7 +3471,7 @@
             : stream === 0 && streamIndex % 4 === 0
               ? `rgb(${highlightR},${highlightG},${highlightB})`
               : `rgb(${lightR},${lightG},${lightB})`;
-          if (profile.particleShadows) drawCtx.shadowBlur = target.high ? 4 + life * 5 : 5 + life * 7;
+          if (profile.particleShadows && state.particleQuality === 'full') drawCtx.shadowBlur = target.high ? 4 + life * 5 : 5 + life * 7;
           drawCtx.beginPath();
           drawCtx.arc(particleX, particleY, particleSize, 0, Math.PI * 2);
           drawCtx.fill();
@@ -3905,7 +3964,21 @@
     });
   }
 
+  function micExpectsNote(noteIndex) {
+    if (state.mode === 'wait') return state.parsedNotes[state.waitingIndex]?.noteIndex === noteIndex;
+    const windowSize = .42 / state.speed;
+    return state.parsedNotes.some(note => note.noteIndex === noteIndex && !state.hitNotes.has(note.id) && Math.abs(note.time - state.currentTime) <= windowSize);
+  }
+
   function handleUserNote(noteIndex, options = {}) {
+    if (options.source === 'microphone') {
+      // A tongue rings for a while and its swell can sound like a second strike. The same
+      // note again within ~1.3 s only counts when the song asks for it.
+      const heardAt = performance.now();
+      if (noteIndex === state.micLastNote && heardAt - state.micLastAt < 1300 && !micExpectsNote(noteIndex)) return;
+      state.micLastNote = noteIndex;
+      state.micLastAt = heardAt;
+    }
     if (options.source !== 'microphone') {
       primeAudioFromGesture();
       playTone(noteIndex, true).catch(() => {});
@@ -3926,6 +3999,8 @@
         tapeJudge(state.missedNoteIds.has(expected.id) ? 'good' : 'hit');
         state.waitingIndex += 1;
         state.currentTime = Math.min(state.duration, (state.parsedNotes[state.waitingIndex]?.time ?? state.duration));
+        const chordDone = (state.parsedNotes[state.waitingIndex]?.time ?? Infinity) > expected.time + 0.01;
+        if (state.waitStyle === 'game' && chordDone) playChime();
         if (state.waitingIndex >= state.parsedNotes.length) finishPlayback();
         else scheduleWaitHint(expected);
       } else {
@@ -4014,6 +4089,11 @@
     els.micBtn.classList.toggle('active', state.micEnabled);
     els.micBtn.setAttribute('aria-pressed', String(state.micEnabled));
     els.micBtn.innerHTML = `${MIC_ICON} Microphone ${state.micEnabled ? 'on' : 'off'}`;
+    if (els.stageMicBtn) {
+      els.stageMicBtn.lastElementChild.textContent = `Mic ${state.micEnabled ? 'on' : 'off'}`;
+      els.stageMicBtn.classList.toggle('active', state.micEnabled);
+      els.stageMicBtn.setAttribute('aria-pressed', String(state.micEnabled));
+    }
     if (!state.micEnabled) {
       setMicStatus(state.mode === 'tuner' ? 'Turn on the microphone to tune' : 'Use in Practice, Wait, or Tuner mode');
       if (state.mode === 'tuner') resetTunerDisplay();
@@ -4352,6 +4432,10 @@
   function setFocusMode(enabled) {
     state.focusMode = Boolean(enabled) && window.innerWidth <= 1100;
     document.body.classList.toggle('focus-mode', state.focusMode);
+    try {
+      if (state.focusMode && !history.state?.tdtFocus) history.pushState({ tdtFocus: true }, '');
+      else if (!state.focusMode && history.state?.tdtFocus) { state.focusModeIgnorePop = true; history.back(); }
+    } catch { /* file:// may refuse; not important */ }
     fitTabletStage();
     if (els.focusModeBtn) {
       els.focusModeBtn.classList.toggle('active', state.focusMode);
@@ -4524,6 +4608,7 @@
       state.playing = true;
       state.waitingIndex = state.parsedNotes.findIndex(n => n.time >= state.currentTime - .01);
       if (state.waitingIndex < 0) state.waitingIndex = 0;
+      scheduleWaitHint(null);
       updateTransportUI();
       updatePracticeUI();
       renderFrame();
@@ -4544,6 +4629,8 @@
     updateTransportUI();
     playClick(true).catch(() => {});
     const timer = window.setInterval(() => {
+      // Paused (or the mode changed) during the count-in: stop counting.
+      if (!state.countInActive) { clearInterval(timer); return; }
       state.countInRemaining -= 1;
       if (state.countInRemaining <= 0) {
         clearInterval(timer);
@@ -4785,10 +4872,13 @@
     }
     if (els.guideBtn) {
       const listen = state.mode === 'demo';
-      els.guideBtn.classList.toggle('active', state.guide);
-      els.guideBtn.setAttribute('aria-pressed', String(state.guide));
+      const guideOn = state.mode === 'wait' ? state.waitStyle === 'hear' : state.guide;
+      els.guideBtn.classList.toggle('active', guideOn);
+      els.guideBtn.setAttribute('aria-pressed', String(guideOn));
       els.guideBtn.disabled = listen;
-      els.guideBtn.title = listen ? 'Listen always plays the song' : state.guide ? 'Song sound on: the app plays the song quietly while you play' : 'Song sound off: only your own notes';
+      els.guideBtn.title = listen ? 'Listen always plays the song'
+        : state.mode === 'wait' ? (guideOn ? 'Hear it first: the app plays each note, then waits for you' : 'The app stays quiet and waits for your note')
+        : state.guide ? 'Song sound on: the app plays the song quietly while you play' : 'Song sound off: only your own notes';
     }
     updateABLoopUI();
   }
@@ -4797,15 +4887,300 @@
   // softly, at the song's own gap, unless it has already been played.
   function scheduleWaitHint(previous) {
     clearTimeout(state.waitHintTimer);
-    if (!state.guide || state.mode !== 'wait') return;
+    if (state.waitStyle !== 'hear' || state.mode !== 'wait') return;
     const next = state.parsedNotes[state.waitingIndex];
     if (!next) return;
-    const gap = Math.max(.3, Math.min(1.4, (next.time - previous.time) / state.speed));
+    const gap = previous ? Math.max(.3, Math.min(1.4, (next.time - previous.time) / state.speed)) : .45;
     const index = state.waitingIndex;
     state.waitHintTimer = window.setTimeout(() => {
       if (state.mode !== 'wait' || !state.playing || state.waitingIndex !== index) return;
+      // The microphone must not take the app's own note for yours.
+      state.micEchoUntil = Math.max(state.micEchoUntil || 0, performance.now() + 900);
       playMidi(next.midi, state.instrument.referencePitch || 440, false, 0, .5).catch(() => {});
     }, gap * 1000);
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* v16: rotation, wait styles, stage chips, drafts, chooser            */
+  /* ------------------------------------------------------------------ */
+
+  function drumRotationStep(count = state.instrument.count) {
+    const outer = hasCenterTongue(count) ? count - 1 : count;
+    return 360 / Math.max(4, outer);
+  }
+
+  function rotatePlacement(placement, turn) {
+    if (!placement.manual) return { ...placement, angle: (placement.angle || 0) + turn };
+    const rad = turn * Math.PI / 180;
+    const c = Math.cos(rad);
+    const s = Math.sin(rad);
+    const next = { ...placement, rotate: (placement.rotate || 0) + turn };
+    if (placement.xp !== undefined) {
+      next.xp = placement.xp * c - placement.yp * s;
+      next.yp = placement.xp * s + placement.yp * c;
+    } else if (placement.x !== undefined) {
+      next.x = placement.x * c - placement.y * s;
+      next.y = placement.x * s + placement.y * c;
+    }
+    return next;
+  }
+
+  function placeTonguePad(pad, placement) {
+    if (placement.manual) {
+      const offsetX = placement.xp !== undefined ? `${placement.xp}%` : `${placement.x}px`;
+      const offsetY = placement.yp !== undefined ? `${placement.yp}%` : `${placement.y}px`;
+      pad.style.left = `calc(50% + ${offsetX})`;
+      pad.style.top = `calc(50% + ${offsetY})`;
+      pad.style.setProperty('--rotation', `${placement.rotate || 0}deg`);
+    } else {
+      pad.style.setProperty('--angle', `${placement.angle}deg`);
+    }
+  }
+
+  // Moves the tongues (and the notes' flight paths) without rebuilding the drum.
+  function applyDrumRotation(turn) {
+    state.drumRotation = turn;
+    drumPlacementCache.clear();
+    [els.stageDrumWrap, els.drumWrap, els.myDrumPreview].forEach(container => {
+      container?.querySelectorAll('.drum-body > .tongue[data-note-index]').forEach(pad => {
+        placeTonguePad(pad, getDrumPlacement(Number(pad.dataset.noteIndex)));
+      });
+    });
+    (state.parsedNotes || []).forEach(note => { note.placement = getDrumPlacement(note.noteIndex); });
+    state.staticGuideCanvas = null;
+    state.staticGuideKey = '';
+    renderFrame();
+  }
+
+  const drumSpin = { raf: 0, target: null };
+
+  function rotateTongueDrum(direction) {
+    const step = drumRotationStep();
+    const from = state.drumRotation || 0;
+    const base = drumSpin.target ?? from;
+    const to = Math.round((base + direction * step) / step) * step;
+    drumSpin.target = to;
+    cancelAnimationFrame(drumSpin.raf);
+    const startedAt = performance.now();
+    const duration = 260;
+    const tick = now => {
+      const k = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - k, 3);
+      applyDrumRotation(from + (to - from) * eased);
+      if (k < 1) { drumSpin.raf = requestAnimationFrame(tick); return; }
+      const settled = ((to % 360) + 360) % 360;
+      drumSpin.target = null;
+      applyDrumRotation(Math.abs(settled - 360) < 0.01 ? 0 : Math.round(settled * 1000) / 1000);
+      try { localStorage.setItem(STORAGE_ROTATION, String(state.drumRotation)); } catch {}
+    };
+    drumSpin.raf = requestAnimationFrame(tick);
+  }
+
+  const WAIT_STYLE_LABELS = { quiet: 'quiet', hear: 'hear first', game: 'game' };
+
+  function syncWaitControls() {
+    if (els.waitStyleSelect) els.waitStyleSelect.value = state.waitStyle;
+    if (!els.stageWaitBtn) return;
+    const waiting = state.mode === 'wait';
+    els.stageWaitBtn.textContent = waiting ? `Wait: ${WAIT_STYLE_LABELS[state.waitStyle]}` : 'Wait: off';
+    els.stageWaitBtn.classList.toggle('active', waiting);
+    els.stageWaitBtn.setAttribute('aria-pressed', String(waiting));
+  }
+
+  function setWaitStyle(style) {
+    if (!WAIT_STYLE_LABELS[style]) return;
+    state.waitStyle = style;
+    try { localStorage.setItem(STORAGE_WAIT_STYLE, style); } catch {}
+    if (style !== 'hear') clearTimeout(state.waitHintTimer);
+    syncWaitControls();
+    updateTransportUI();
+  }
+
+  function setWaitOn(on) {
+    if (!els.waitToggle) return;
+    els.waitToggle.checked = on;
+    els.waitToggle.dispatchEvent(new Event('change'));
+  }
+
+  // The stage chip steps through: off → quiet → hear it first → game → off.
+  function cycleStageWait() {
+    const order = ['quiet', 'hear', 'game'];
+    if (state.mode !== 'wait') {
+      state.waitStyle = 'quiet';
+      try { localStorage.setItem(STORAGE_WAIT_STYLE, 'quiet'); } catch {}
+      setWaitOn(true);
+    } else {
+      const next = order.indexOf(state.waitStyle) + 1;
+      if (next >= order.length) setWaitOn(false);
+      else setWaitStyle(order[next]);
+    }
+    syncWaitControls();
+    showToast(state.mode === 'wait' ? `Wait for note: ${els.waitStyleSelect.options[order.indexOf(state.waitStyle)].text}.` : 'Wait for note is off.', 'success');
+  }
+
+  // A short, bright "correct!" for the Game style.
+  function playChime() {
+    const context = state.audioContext;
+    if (!context || context.state !== 'running') return;
+    const out = state.masterGain || context.destination;
+    const t0 = context.currentTime + 0.01;
+    [[1318.5, 0, 0.13], [1975.5, 0.085, 0.11], [2637, 0.17, 0.06]].forEach(([freq, delay, level]) => {
+      const osc = context.createOscillator();
+      const gain = context.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, t0 + delay);
+      gain.gain.exponentialRampToValueAtTime(level, t0 + delay + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + delay + 0.42);
+      osc.connect(gain).connect(out);
+      osc.start(t0 + delay);
+      osc.stop(t0 + delay + 0.45);
+    });
+    state.micEchoUntil = Math.max(state.micEchoUntil || 0, performance.now() + 700);
+  }
+
+  /* Drafts: every song you work on in the builder keeps its own unsaved draft. */
+  function readAllDrafts() {
+    let list = [];
+    try { list = JSON.parse(localStorage.getItem(STORAGE_EDITOR_DRAFTS) || '[]'); } catch { list = []; }
+    if (!Array.isArray(list)) list = [];
+    // The single draft kept by older versions joins the list once.
+    try {
+      const old = JSON.parse(localStorage.getItem(STORAGE_EDITOR_DRAFT) || 'null');
+      if (old && draftHasContent(old)) {
+        if (!old.draftKey || old.draftKey === 'new') old.draftKey = old.songId ? `song:${old.songId}` : `new:${old.savedAt || Date.now()}`;
+        if (!list.some(item => item.draftKey === old.draftKey)) list.push(old);
+        localStorage.setItem(STORAGE_EDITOR_DRAFTS, JSON.stringify(list));
+      }
+      localStorage.removeItem(STORAGE_EDITOR_DRAFT);
+    } catch {}
+    return list.filter(item => item && item.draftKey && draftHasContent(item)).sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+  }
+
+  function writeAllDrafts(list) {
+    try { localStorage.setItem(STORAGE_EDITOR_DRAFTS, JSON.stringify(list.slice(0, 30))); } catch {}
+  }
+
+  function updateDraftNotice(restored) {
+    if (!els.draftNotice) return;
+    const all = readAllDrafts();
+    const others = all.filter(item => item.draftKey !== state.editorDraftKey).length;
+    if (!restored && !others) { els.draftNotice.hidden = true; return; }
+    els.draftNotice.hidden = false;
+    if (restored) {
+      const when = new Date(restored.savedAt || Date.now());
+      const stamp = Number.isNaN(when.getTime()) ? '' : ` from ${when.toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`;
+      els.draftNoticeText.textContent = `Unsaved draft restored${stamp}.`;
+    } else {
+      els.draftNoticeText.textContent = others === 1 ? 'You have 1 unsaved draft.' : `You have ${others} unsaved drafts.`;
+    }
+    els.discardDraftBtn.hidden = !restored;
+    els.allDraftsBtn.hidden = !others;
+    els.allDraftsBtn.textContent = restored ? `All drafts (${all.length})` : 'Open drafts';
+  }
+
+  function flushDraftSave() {
+    if (state.draftSaveTimer) { clearTimeout(state.draftSaveTimer); state.draftSaveTimer = 0; writeDraft(); }
+  }
+
+  function draftSourceKey(draft) {
+    return String(draft.draftKey || '').startsWith('copy:') ? draft.draftKey.slice(5) : null;
+  }
+
+  function draftLabel(draft) {
+    if (draft.songId) {
+      const song = state.songs.find(item => item.id === draft.songId);
+      return song ? `Changes to “${song.title}”` : 'Changes to a deleted song';
+    }
+    const sourceId = draftSourceKey(draft);
+    if (sourceId) {
+      const song = state.songs.find(item => item.id === sourceId);
+      return song ? `Copy of “${song.title}”` : 'Copy of a song';
+    }
+    return 'New song';
+  }
+
+  function renderDrafts() {
+    const drafts = readAllDrafts();
+    els.draftsList.replaceChildren();
+    els.draftsEmpty.hidden = drafts.length > 0;
+    drafts.forEach(draft => {
+      const li = document.createElement('li');
+      li.className = `draft-item${els.editorDialog.open && draft.draftKey === state.editorDraftKey ? ' current' : ''}`;
+      const notes = Array.isArray(draft.timeline) && draft.timeline.length
+        ? draft.timeline.filter(item => item.core && !['|', '-', '0'].includes(String(item.core))).length
+        : String(draft.sequence || '').split(/\s+/).filter(token => token && !['|', '-', '0'].includes(token)).length;
+      const when = new Date(draft.savedAt || Date.now()).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      li.innerHTML = `<div class="draft-info"><b>${escapeHtml(String(draft.title || '').trim() || 'Untitled')}</b><small>${escapeHtml(draftLabel(draft))} · ${notes} notes · ${escapeHtml(when)}</small></div>
+        <button type="button" class="draft-open">Open</button>
+        <button type="button" class="draft-delete" aria-label="Delete this draft" title="Delete this draft"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16"></path><path d="M9 7V4h6v3"></path><path d="M6 7l1 13h10l1-13"></path></svg></button>`;
+      li.querySelector('.draft-open').addEventListener('click', () => openDraft(draft));
+      li.querySelector('.draft-delete').addEventListener('click', () => {
+        if (!window.confirm(`Delete the draft “${String(draft.title || '').trim() || 'Untitled'}”?`)) return;
+        clearDraft(draft.draftKey);
+        if (els.editorDialog.open) updateDraftNotice(readAllDrafts().find(item => item.draftKey === state.editorDraftKey) || null);
+        renderDrafts();
+      });
+      els.draftsList.appendChild(li);
+    });
+  }
+
+  function openDrafts() {
+    flushDraftSave();
+    renderDrafts();
+    if (!els.draftsDialog.open) els.draftsDialog.showModal();
+  }
+
+  function openDraft(draft) {
+    flushDraftSave();
+    if (els.draftsDialog.open) els.draftsDialog.close();
+    const song = draft.songId ? state.songs.find(item => item.id === draft.songId) : null;
+    const sourceId = draftSourceKey(draft);
+    const source = !song && sourceId ? state.songs.find(item => item.id === sourceId) : null;
+    if (song) openEditor(song, { draftKey: draft.draftKey });
+    else if (source) openEditor({ ...source, id: null, sourceSongId: source.id, title: `${source.title} copy`, builtIn: false }, { draftKey: draft.draftKey });
+    else openEditor(null, { draftKey: draft.draftKey });
+  }
+
+  function editSelectedSong() {
+    const song = selectedSong();
+    if (song?.builtIn) openEditor({ ...song, id: null, sourceSongId: song.id, title: `${song.title} copy`, builtIn: false });
+    else openEditor(song);
+  }
+
+  function narrowPhone() {
+    return window.matchMedia?.('(max-width: 360px)').matches;
+  }
+
+  function openEditChoice() {
+    const song = selectedSong();
+    els.choiceEditBtn.hidden = !song;
+    els.choiceEditNote.textContent = song?.builtIn ? 'Make your own copy of this song' : 'Change its notes, tempo or title';
+    const count = readAllDrafts().length;
+    els.choiceDraftsBtn.hidden = !count;
+    els.choiceDraftsBtn.querySelector('b').textContent = `Drafts (${count})`;
+    if (!els.editChoiceDialog.open) els.editChoiceDialog.showModal();
+  }
+
+  function bindRound16() {
+    els.rotateLeftBtn?.addEventListener('click', () => rotateTongueDrum(-1));
+    els.rotateRightBtn?.addEventListener('click', () => rotateTongueDrum(1));
+    els.allDraftsBtn?.addEventListener('click', openDrafts);
+    els.editorDialog?.addEventListener('close', flushDraftSave);
+    els.choiceEditBtn?.addEventListener('click', () => { els.editChoiceDialog.close(); editSelectedSong(); });
+    els.choiceNewBtn?.addEventListener('click', () => { els.editChoiceDialog.close(); openEditor(); });
+    els.choiceDraftsBtn?.addEventListener('click', () => { els.editChoiceDialog.close(); openDrafts(); });
+    els.waitStyleSelect?.addEventListener('change', () => {
+      setWaitStyle(els.waitStyleSelect.value);
+      showToast(`Wait for note: ${els.waitStyleSelect.selectedOptions[0].text}.`, 'success');
+    });
+    els.stageWaitBtn?.addEventListener('click', cycleStageWait);
+    els.stageMicBtn?.addEventListener('click', () => els.micBtn.click());
+    window.addEventListener('popstate', () => {
+      if (state.focusModeIgnorePop) { state.focusModeIgnorePop = false; return; }
+      if (state.focusMode) { pausePlayback(); setFocusMode(false); }
+    });
+    syncWaitControls();
   }
 
   function appIsInstalled() {
@@ -4881,7 +5256,9 @@
     strip.addEventListener('pointercancel', end);
   }
 
-  function setMode(mode) {
+  function setMode(mode, { keepPlace = false } = {}) {
+    const resumeAt = keepPlace ? state.currentTime : 0;
+    const resume = keepPlace && (state.playing || state.countInActive);
     pausePlayback();
     restartSong();
     state.mode = mode;
@@ -4889,6 +5266,7 @@
     if (!sectionLoopAvailable()) state.sectionLoop = false;
     document.querySelectorAll('.segment').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode || (btn.dataset.mode === 'practice' && mode === 'wait')));
     if (els.waitToggle) els.waitToggle.checked = mode === 'wait' || (mode !== 'practice' && state.waitPref);
+    syncWaitControls();
     // A microphone the tuner switched on goes off again afterwards; Listen never listens.
     if (mode !== 'tuner' && state.micEnabled && (state.micByTuner || mode === 'demo')) stopMicrophone();
     if (mode !== 'tuner') state.micByTuner = false;
@@ -4915,6 +5293,8 @@
     syncTapeVisibility();
     fitTabletStage();
     renderFrame();
+    if (keepPlace && resumeAt > 0) seekToTime(resumeAt);
+    if (resume) togglePlayback().catch(() => {});
   }
 
   function applyVisualMode() {
@@ -5012,13 +5392,15 @@
     els.sequenceInput.focus();
   }
 
-  function openEditor(song = null) {
+  function openEditor(song = null, options = {}) {
+    flushDraftSave();
+    state.editorLoading = true;
     state.editorSongId = song?.id || null;
-    state.editorDraftKey = state.editorSongId
+    state.editorDraftKey = options.draftKey || (state.editorSongId
       ? `song:${state.editorSongId}`
       : song?.sourceSongId
         ? `copy:${song.sourceSongId}`
-        : 'new';
+        : `new:${Date.now()}`);
     els.editorHeading.textContent = song ? 'Edit song' : 'Create a song';
     const savedCustomSong = state.editorSongId
       ? state.songs.find(item => item.id === state.editorSongId && !item.builtIn)
@@ -5037,9 +5419,10 @@
     clearTimingSelection();
     els.sequenceInput.value = formatSequenceIntoLines(cleanSequenceFromTimeline());
     renderSequenceBackdrop();
-    if (els.draftNotice) els.draftNotice.hidden = true;
     const draft = readDraft();
-    if (draftMatchesEditor(draft)) applyDraft(draft);
+    if (draft) applyDraft(draft);
+    else updateDraftNotice(null);
+    state.editorLoading = false;
     if (els.expressiveTimingToggle) els.expressiveTimingToggle.checked = state.expressiveTimingEnabled;
     state.editorSelectionStart = els.sequenceInput.value.length;
     state.editorSelectionEnd = els.sequenceInput.value.length;
@@ -5334,42 +5717,28 @@
   }
 
   function writeDraft() {
+    clearTimeout(state.draftSaveTimer);
+    state.draftSaveTimer = 0;
+    if (!state.editorDraftKey) return;
     const draft = currentDraft();
-    if (!draftHasContent(draft)) {
-      clearDraft();
-      return;
-    }
-    try { localStorage.setItem(STORAGE_EDITOR_DRAFT, JSON.stringify(draft)); } catch {}
+    const rest = readAllDrafts().filter(item => item.draftKey !== draft.draftKey);
+    writeAllDrafts(draftHasContent(draft) ? [draft, ...rest] : rest);
   }
 
   function queueDraftSave() {
-    if (!els.editorDialog?.open) return;
+    if (!els.editorDialog?.open || state.editorLoading) return;
     clearTimeout(state.draftSaveTimer);
     state.draftSaveTimer = setTimeout(writeDraft, 400);
   }
 
   function readDraft() {
-    try {
-      const raw = localStorage.getItem(STORAGE_EDITOR_DRAFT);
-      if (!raw) return null;
-      const draft = JSON.parse(raw);
-      return draftHasContent(draft) ? draft : null;
-    } catch {
-      return null;
-    }
+    return readAllDrafts().find(item => item.draftKey === state.editorDraftKey) || null;
   }
 
-  function draftMatchesEditor(draft) {
-    if (!draft) return false;
-    if (draft.draftKey) return draft.draftKey === state.editorDraftKey;
-    if (!state.editorSongId) return state.editorDraftKey === 'new' && !draft.songId;
-    return draft.songId === state.editorSongId;
-  }
-
-  function clearDraft() {
-    clearTimeout(state.draftSaveTimer);
-    try { localStorage.removeItem(STORAGE_EDITOR_DRAFT); } catch {}
-    if (els.draftNotice) els.draftNotice.hidden = true;
+  function clearDraft(key = state.editorDraftKey) {
+    if (key === state.editorDraftKey) { clearTimeout(state.draftSaveTimer); state.draftSaveTimer = 0; }
+    writeAllDrafts(readAllDrafts().filter(item => item.draftKey !== key));
+    if (els.draftNotice && key === state.editorDraftKey) els.draftNotice.hidden = true;
   }
 
   function setSongBpmValue(bpm) {
@@ -5409,12 +5778,7 @@
     els.sequenceInput.value = formatSequenceIntoLines(cleanSequenceFromTimeline());
     renderSequenceBackdrop();
     clearTimingSelection();
-    if (els.draftNotice) {
-      els.draftNotice.hidden = false;
-      const when = new Date(draft.savedAt || Date.now());
-      const stamp = Number.isNaN(when.getTime()) ? '' : ` from ${when.toLocaleString()}`;
-      els.draftNoticeText.textContent = `Unsaved draft restored${stamp}.`;
-    }
+    updateDraftNotice(draft);
   }
 
   function saveEditorSong(event) {
@@ -7454,7 +7818,7 @@
     tapeEls.noteTape.style.height = `${tapeH}px`;
     tape.top = top;
     tape.width = Math.max(120, width - 24);
-    tape.playheadX = Math.round(tape.width * 0.3);
+    tape.playheadX = Math.round(tape.width * (window.innerWidth > 760 ? 0.5 : 0.3));
     tapeEls.noteTape.style.setProperty('--playhead', `${tape.playheadX}px`);
     tape.lastX = null;
   }
@@ -7467,7 +7831,8 @@
     if (width <= 760) {
       // Phones: the drum keeps its normal size (so notes flying in from the sides stay
       // visible) and sits centred between the score row and the tape.
-      const top = 64;
+      const chips = state.focusMode && (state.mode === 'practice' || state.mode === 'wait');
+      const top = chips ? 106 : 64;
       const room = maxBottom - top;
       const drumSize = Math.max(170, Math.min(geometry.drumSize, (room - 8) / (ext * 2)));
       return { drumSize, scale: drumSize / STAGE_DRUM_BASE, cx: geometry.cx, cy: top + drumSize * ext + Math.max(0, room - drumSize * ext * 2) * 0.55 };
@@ -7698,11 +8063,7 @@
     els.newSongBtn.addEventListener('click', () => openEditor());
     els.topNewSongBtn?.addEventListener('click', () => openEditor());
     els.learnBtn?.addEventListener('click', () => openSongGuide('editor'));
-    els.editBtn.addEventListener('click', () => {
-      const song = selectedSong();
-      if (song?.builtIn) openEditor({ ...song, id: null, sourceSongId: song.id, title: `${song.title} copy`, builtIn: false });
-      else openEditor(song);
-    });
+    els.editBtn.addEventListener('click', () => (narrowPhone() ? openEditChoice() : editSelectedSong()));
     els.importBtn.addEventListener('click', () => els.importFile.click());
     els.importFile.addEventListener('change', () => els.importFile.files[0] && importSong(els.importFile.files[0]));
     els.libraryBtn?.addEventListener('click', () => { checkDemoCatalogUpdate(true); openSongLibrary('all'); });
@@ -7772,8 +8133,9 @@
       try { localStorage.setItem(STORAGE_WAIT, state.waitPref ? '1' : '0'); } catch {}
       if (state.mode === 'practice' || state.mode === 'wait') {
         const mode = state.waitPref ? 'wait' : 'practice';
-        setMode(mode);
-        maybeStartModeWalkthrough(mode);
+        const wasPlaying = state.playing;
+        setMode(mode, { keepPlace: true });
+        if (!wasPlaying) maybeStartModeWalkthrough(mode);
       }
     });
     els.stopBtn?.addEventListener('click', () => {
@@ -7781,6 +8143,13 @@
       if (state.focusMode && window.innerWidth <= 760) setFocusMode(false);
     });
     els.guideBtn?.addEventListener('click', () => {
+      if (state.mode === 'wait') {
+        // In Wait for note the speaker switches between "Hear it first" and quiet.
+        setWaitStyle(state.waitStyle === 'hear' ? 'quiet' : 'hear');
+        if (state.waitStyle === 'hear' && state.playing) scheduleWaitHint(null);
+        showToast(state.waitStyle === 'hear' ? 'Hear it first: the app plays each note, then waits for you.' : 'Quiet: the app waits for your note in silence.', 'success');
+        return;
+      }
       state.guide = !state.guide;
       try { localStorage.setItem(STORAGE_GUIDE, state.guide ? '1' : '0'); } catch {}
       if (!state.guide) clearTimeout(state.waitHintTimer);
@@ -7842,8 +8211,9 @@
     });
     els.exportSheetBtn?.addEventListener('click', exportSheetPdf);
     els.discardDraftBtn?.addEventListener('click', () => {
-      clearDraft();
-      openEditor(state.songs.find(item => item.id === state.editorSongId) || null);
+      const key = state.editorDraftKey;
+      clearDraft(key);
+      openEditor(state.songs.find(item => item.id === state.editorSongId) || null, { draftKey: key });
       showToast('Draft discarded.', 'success');
     });
     [els.songTitleInput, els.songBpmInput, els.songScaleSelect, els.sequenceInput].forEach(field => {
@@ -8077,6 +8447,7 @@
     window.addEventListener('keydown', keyboardHandler);
     bindHints();
     bindFullscreen();
+    bindRound16();
     // Phone dock on the stage: Play opens the full-screen focus view, like the handpan app.
     els.dockPlayBtn?.addEventListener('click', () => {
       if (window.innerWidth <= 760 && !state.focusMode && !state.playing) setFocusMode(true);
@@ -8439,6 +8810,10 @@
     try {
       state.guide = localStorage.getItem(STORAGE_GUIDE) === '1';
       state.waitPref = localStorage.getItem(STORAGE_WAIT) === '1';
+      const style = localStorage.getItem(STORAGE_WAIT_STYLE);
+      state.waitStyle = ['quiet', 'hear', 'game'].includes(style) ? style : (state.guide ? 'hear' : 'quiet');
+      const turn = Number(localStorage.getItem(STORAGE_ROTATION));
+      state.drumRotation = Number.isFinite(turn) ? turn : 0;
     } catch { state.guide = false; state.waitPref = false; }
     document.body.dataset.mode = state.mode;
     initTape();

@@ -1,0 +1,10 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Mary Had a Little Lamb",
+    "bpm": 100,
+    "sequence": "3 2 1 2 | 3 3 3 - | 2 2 2 - | 3 5 5 - |\n3 2 1 2 | 3 3 3 3 | 2 2 3 2 | 1 - - - |",
+    "scaleType": "major",
+    "folder": "demo"
+  }
+}
