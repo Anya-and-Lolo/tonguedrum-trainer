@@ -5,6 +5,7 @@
     "bpm": 100,
     "sequence": "3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 3:1.5 2:0.5 2 - |\n3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 2:1.5 1:0.5 1 - |\n2 2 3 1 | 2 3:0.5 4:0.5 3 1 | 2 3:0.5 4:0.5 3 2 | 1 2 5̣ - |\n3 3 4 5 | 5 4 3 2 | 1 1 2 3 | 2:1.5 1:0.5 1 - |",
     "scaleType": "major",
-    "folder": "community"
+    "folder": "community",
+    "description": "Beethoven's bright melody of smooth, small steps"
   }
 }

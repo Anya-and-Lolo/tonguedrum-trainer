@@ -1,0 +1,11 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Canon in D",
+    "bpm": 72,
+    "sequence": "3̇:2 2̇:2 | 1̇:2 7:2 | 6:2 5:2 | 6:2 7:2 |\n1̇:2 7:2 | 6:2 5:2 | 4:2 3:2 | 4:2 2:2 |\n1 3 5 4 | 3 1 3 2 | 1 6̣ 1 5 | 4 6 5 4 |\n3̇:2 2̇:2 | 1̇:2 7:2 | 6:2 5:2 | 6:2 7:2 | 1̇:4 |",
+    "scaleType": "major",
+    "folder": "demo",
+    "description": "Pachelbel's famous wedding favourite, one layer at a time"
+  }
+}

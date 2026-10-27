@@ -1,0 +1,11 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Scarborough Fair",
+    "bpm": 92,
+    "sequence": "2:2 2 | 6:2 6 | 3:1.5 4:0.5 3 | 2:3 |\n6:2 1̇ | 2̇:2 1̇ | 6 7 5 | 6:3 |\n2̇:2 2̇ | 1̇:2 6 | 6 5 4 | 3 1:2 |\n2:2 6 | 5:2 4 | 3 2 1 | 2:3 |",
+    "scaleType": "major",
+    "folder": "demo",
+    "description": "A haunting English folk ballad that rolls along in three"
+  }
+}

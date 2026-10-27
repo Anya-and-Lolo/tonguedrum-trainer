@@ -1,8 +1,11 @@
-const CACHE = 'ethereal-drum-trainer-v86-r16';
+const CACHE = 'ethereal-drum-trainer-v90-r20';
 const SHELL = [
   './',
   './index.html',
+  './app-files/ethereal-common.css',
   './app-files/styles.css',
+  './app-files/ethereal-common-layout.css',
+  './app-files/ethereal-common.js',
   './app-files/app.js',
   './app-files/community-upload-config.js',
   './app-files/demo-catalog.js',
