@@ -56,11 +56,6 @@
 
       <div class="song-list" id="songList" aria-live="polite"></div>
 
-      <div class="sidebar-footer">
-        <button class="text-btn" id="exportBtn">Export selected song</button>
-        <button class="text-btn danger" id="deleteBtn">Delete selected song</button>
-        <button class="text-btn" id="restoreDemosBtn" hidden>Restore removed catalogue songs</button>
-      </div>
     </aside>
 
     <button class="sidebar-scrim" id="sidebarScrim" type="button" aria-label="Close songs menu"></button>
@@ -117,6 +112,7 @@
                   <option value="quiet">Wait · Silent</option>
                 </select>
                 <button class="hint-btn wait-style-hint" type="button" data-hint="Don't wait: the song plays on and you play along. Game Mode: the song stops at each note until you play it, with a happy chime when you get it right. Play Note: the app plays each note first, then waits for you. Silent: the song waits for your note in silence." aria-label="About the Wait for note styles">?</button>
+                <button class="rec-chip" id="recChipBtn" type="button" aria-pressed="false" title="Record your take: the song and your playing"><i aria-hidden="true"></i><span>Rec</span></button><button class="take-chip" id="takeChipBtn" type="button" hidden>▶ Take</button>
               </div>
               <div class="display-control">
                 <span>Display</span>
@@ -160,8 +156,8 @@
             </div>
             <button class="speed-cycle-btn" id="speedCycleBtn" type="button" aria-label="Speed: tap to slow down" title="Tap to change the speed"><small>Speed</small><b id="speedCycleValue">1×</b></button>
             <div class="stage-practice-chips" id="stagePracticeChips" role="group" aria-label="Practice options">
-              <button class="stage-chip" id="stageWaitBtn" type="button" aria-pressed="false" title="Tap to change: off, game, play note, silent">Wait: off</button>
-              <button class="stage-chip" id="stageMicBtn" type="button" aria-pressed="false"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path></svg><span>Mic off</span></button>
+              <label class="stage-chip stage-tile stage-wait-tile" id="stageWaitBtn" title="Wait for note"><small>Wait</small><b>Off</b><select id="stageWaitSelect" aria-label="Wait for note"><option value="off">Don't wait for note</option><option value="game">Wait · Game Mode</option><option value="hear">Wait · Play Note</option><option value="quiet">Wait · Silent</option></select></label>
+              <button class="stage-chip stage-tile" id="stageMicBtn" type="button" aria-pressed="false"><small><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path></svg>Mic</small><span>Off</span></button>
             </div>
             <div class="stage-judge" id="stageJudge" aria-hidden="true"></div>
             <div class="stage-overlay top-left">
@@ -553,6 +549,8 @@
           <button type="button" class="soft-btn" id="exportInstrumentBtn">Export drum settings</button>
           <button type="button" class="text-tool-btn" id="importInstrumentBtn">Import settings</button>
           <button type="button" class="text-tool-btn" id="micCheckBtn">Microphone check</button>
+          <div class="progress-pair" role="group" aria-label="Your progress"><button type="button" class="text-tool-btn" id="saveProgressBtn">Save progress</button><button type="button" class="text-tool-btn" id="deleteProgressBtn">Delete progress</button></div>
+          <input id="progressFile" type="file" accept=".json,application/json" hidden />
           <input id="importInstrumentFile" type="file" accept=".drumsettings,.json,application/json" hidden />
         </div>
         <button type="button" class="primary-btn" id="editInstrumentBtn">Edit instrument</button>
@@ -607,6 +605,8 @@
           </select>
         </label>
       </div>
+
+      <div class="haptics-option"><label class="toggle-label"><input type="checkbox" id="hapticsToggle" checked /><span>Vibrate when I tap the drum (haptic feedback)</span></label></div>
 
       <div class="high-drum-option" id="highDrumOption">
         <div class="high-drum-option-copy">
@@ -804,6 +804,12 @@
         <button type="button" class="choice-btn" id="choiceEditBtn"><b>Edit this song</b><small id="choiceEditNote">Change its notes, tempo or title</small></button>
         <button type="button" class="choice-btn" id="choiceDraftsBtn" hidden><b>Drafts</b><small>Songs you have not saved yet</small></button>
       </div>
+      <div class="choice-more">
+        <button type="button" class="text-btn" id="shareSongBtn">Send as a link</button>
+        <button type="button" class="text-btn" id="exportBtn">Export this song</button>
+        <button type="button" class="text-btn danger" id="deleteBtn">Delete this song</button>
+        <button type="button" class="text-btn" id="restoreDemosBtn" hidden>Restore removed demo songs</button>
+      </div>
       <button type="button" class="soft-btn choice-cancel" data-close-dialog="editChoiceDialog">Cancel</button>
     </div>
   </dialog>
@@ -854,6 +860,9 @@
         <div><strong id="resultStreakValue">0</strong><span>streak</span></div>
       </div>
       <div class="result-best" id="resultBest" hidden></div>
+      <div class="result-history" id="resultHistory" hidden></div>
+      <div class="result-take" id="resultTake" hidden></div>
+      <p class="result-today" id="resultToday"></p>
       <p class="result-mistakes" id="resultMistakes"></p>
       <div class="result-recommendation" id="resultRecommendation" hidden>
         <span class="result-recommendation-label">Recommended next</span>
@@ -861,9 +870,10 @@
       </div>
       <div class="result-actions">
         <button type="button" class="soft-btn" id="resultReplayBtn">Play again</button>
+        <button type="button" class="primary-btn" id="resultDrillBtn" hidden>New drill</button>
         <button type="button" class="primary-btn" id="resultFasterBtn" hidden>Try 1×</button>
         <button type="button" class="primary-btn" id="resultSlowerBtn" hidden>Again, a bit slower</button>
-        <button type="button" class="primary-btn" id="practiceMistakesBtn">Practice mistakes</button>
+        <button type="button" class="primary-btn" id="practiceMistakesBtn">Smart loop for mistakes</button>
         <button type="button" class="soft-btn" id="resultNextBtn">Next in list</button>
       </div>
       <button type="button" class="result-close" data-close-dialog="resultDialog" aria-label="Close results"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11"></path></svg></button>
@@ -946,6 +956,7 @@
 
   <script src="app-files/demo-catalog.js"></script>
   <script src="app-files/community-upload-config.js"></script>
+  <script src="app-files/ethereal-cloud-config.js"></script>
   <script src="app-files/ethereal-common.js"></script>
   <script src="app-files/app.js"></script>
 </body>

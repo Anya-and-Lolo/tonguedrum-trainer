@@ -488,3 +488,5 @@ body.wide-fit .note-stage { grid-area:st; }
 .note-stage.lanes-drum .stage-drum-wrap { display:grid; z-index:3; }
 
 .note-stage.lanes-drum .high-drum-wrap { display:none !important; }
+
+.haptics-option { margin:10px 0 4px; }
