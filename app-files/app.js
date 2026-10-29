@@ -97,8 +97,8 @@
     },
     {
       target: '#songList',
-      title: 'Demo songs and My songs',
-      text: 'Demo songs come from the owner-curated demo folder. Your own created and imported songs appear directly underneath in My songs.'
+      title: 'Song library and My songs',
+      text: 'The Song library opens up as you follow the Song path. Your own created and imported songs appear directly underneath in My songs.'
     },
     {
       target: '#libraryBtn',
@@ -119,7 +119,7 @@
   const MODE_WALKTHROUGH_STEPS = {
     practice: [
       {
-        target: '[data-mode="practice"]',
+        target: '.mode-segmented [data-mode="practice"]',
         title: 'Practice mode',
         text: 'Play along with the moving song. Use the screen, computer keyboard, or microphone with your real drum.'
       },
@@ -129,16 +129,21 @@
         text: 'Play each number as it reaches the drum. Correct notes light up; an incorrect note leaves the song running so you can continue.'
       },
       {
-        target: '.stat-pills',
+        target: ['#waitStyleSelect', '#stageWaitBtn', '#waitToggleLabel'],
+        title: 'Wait for note',
+        text: 'Want to learn slowly? Choose Wait for note: the song stops on each note until you play it. Game Mode chimes for every right note, Play Note plays the note first, Silent just waits.'
+      },
+      {
+        target: ['.stat-pills', '.mobile-stage-pill'],
         title: 'Build your score and streak',
         text: 'Score shows your accuracy. Streak counts consecutive correct notes, and notes left shows how much of the song remains.'
       }
     ],
     wait: [
       {
-        target: '#waitToggleLabel',
+        target: ['#waitStyleSelect', '#stageWaitBtn', '#waitToggleLabel'],
         title: 'Wait for note mode',
-        text: 'Tick Wait for note in Practice when you want to learn slowly. The song stops at each step until you play the correct note.'
+        text: 'The song stops at each note until you play it, so you can learn at your own pace. Play in time and it never stops.'
       },
       {
         target: '#noteStage',
@@ -146,19 +151,19 @@
         text: 'The expected tongue is highlighted. Tap it on screen, press its keyboard key, or play it through the microphone.'
       },
       {
-        target: '#micBtn',
+        target: ['#micBtn', '#stageMicBtn', '#micChipBtn'],
         title: 'Use your real drum',
         text: 'Turn on the microphone if you want the trainer to recognise your drum. You can still use the screen or keyboard without it.'
       }
     ],
     tuner: [
       {
-        target: '[data-mode="tuner"]',
+        target: '.mode-segmented [data-mode="tuner"]',
         title: 'Tuner mode',
         text: 'Tuner listens to one tongue at a time and compares its pitch with the selected instrument setup.'
       },
       {
-        target: '#micBtn',
+        target: ['#micBtn', '#stageMicBtn', '#micChipBtn'],
         title: 'Allow microphone access',
         text: 'Turn on the microphone, then strike one tongue clearly. A quiet room gives the most stable result.'
       },
@@ -1723,7 +1728,7 @@
   }
 
   function songFolderInfo(song, title = songTitleParts(song?.title)) {
-    if (isDemoSong(song)) return { key: 'folder:demo', label: 'Demo songs', order: 0 };
+    if (isDemoSong(song)) return { key: 'folder:demo', label: 'Song library', order: 0 };
     if (isCommunitySong(song)) return { key: 'folder:community', label: 'Community gallery', order: 1 };
     const collection = title.collection.trim();
     return {
@@ -1875,7 +1880,7 @@
     demoGroup.className = 'song-group catalogue-collection demo-collection';
     const demoHeading = document.createElement('div');
     demoHeading.className = 'song-group-heading static-heading';
-    demoHeading.innerHTML = `<span>Demo songs</span><small>${demos.length}</small>`;
+    demoHeading.innerHTML = `<span>Song library</span><small>${demos.length}</small>`;
     demoGroup.appendChild(demoHeading);
     const demoItems = document.createElement('div');
     demoItems.className = 'song-group-items';
@@ -1883,7 +1888,7 @@
     if (!demos.length) {
       const empty = document.createElement('p');
       empty.className = 'community-empty';
-      empty.textContent = q ? 'No demo songs match that search.' : 'No demo songs are available.';
+      empty.textContent = q ? 'No songs in the library match that search.' : 'No songs are in the library yet.';
       demoItems.appendChild(empty);
     }
     demoGroup.appendChild(demoItems);
@@ -2628,6 +2633,7 @@
         state.lastBackdropAt = nowMs;
         state.backdropMode = 'radial';
       }
+      if (state.mode === 'tuner') placeStageDrum(radialGeometry(width, height));
       activeIndices = state.mode === 'tuner' ? new Set() : renderRadialFrame(ctx, width, height);
     } else {
       const geo = laneFrameGeometry(width, height);
@@ -3446,6 +3452,15 @@
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  function placeStageDrum({ cx, cy, scale }) {
+    const key = `${cx.toFixed(2)}:${cy.toFixed(2)}:${scale.toFixed(4)}`;
+    if (!els.stageDrumWrap || state.stageDrumGeometryKey === key) return;
+    els.stageDrumWrap.style.left = `${cx}px`;
+    els.stageDrumWrap.style.top = `${cy}px`;
+    els.stageDrumWrap.style.setProperty('--stage-scale', scale.toFixed(4));
+    state.stageDrumGeometryKey = key;
   }
 
   function renderRadialFrame(ctx, width, height) {
@@ -4806,7 +4821,7 @@
     app: 'ethereal-drum',
     appName: 'Ethereal Drum',
     keys: PROGRESS_KEYS,
-    stats: () => COMMON.progressStats(PROGRESS_KEYS, PRACTICE),
+    stats: () => ({ ...COMMON.progressStats(PROGRESS_KEYS, PRACTICE), ...COMMON.progressReadable({ keys: PROGRESS_KEYS, titleOf: id => { const song = state.songs.find(item => item.id === id); return id === DRILL_ID ? 'Rhythm drill' : song ? songTitleParts(song.title).displayTitle : ''; }, journey: JOURNEY }) }),
     onMerged: () => { BEST.reload(); PRACTICE.reload(); renderSongList(); },
     toast: message => showToast(message, 'success')
   });
@@ -4898,9 +4913,10 @@
     }
     JOURNEY.activeDrill = null;
     selectSong(node.id);
-    state.waitPref = false;
-    setMode('practice');
-    togglePlayback().catch(() => {});
+    // You choose how to play it: Listen or Practice, then Play.
+    
+    COMMON.nudge(document.querySelector('.mode-segmented'));
+    showToast('Choose Listen or Practice, then press Play.', 'success');
   }
 
   function startJourneyOver() {
@@ -4908,9 +4924,12 @@
     BEST.reload();
     JOURNEY.reload();
     journeyMark = JOURNEY.current()?.key || '';
+    // Starting over locks everything again, also for the admin.
+    JOURNEY.adminOff();
     selectSong(JOURNEY.fallbackSong());
     renderSongList();
-    if (CLOUD.connected) CLOUD.push().catch(() => {});
+    // A cloud save starts fresh under a new code; the old one is marked as replaced.
+    if (CLOUD.connected) CLOUD.restart().then(code => { if (code) showToast(`Started over. Your new cloud code is ${code}.`, 'success'); }).catch(() => {});
   }
 
   function openSongPathDialog() {
@@ -7542,7 +7561,7 @@
   function deleteSong(song, closeEditor = false) {
     if (!song) return;
     const catalogue = song.builtIn;
-    const collectionName = isCommunitySong(song) ? 'Community gallery' : 'Demo songs';
+    const collectionName = isCommunitySong(song) ? 'Community gallery' : 'the Song library';
     const question = catalogue
       ? `Remove "${song.title}" from ${collectionName}?\n\nThis removes it from this browser only.`
       : `Delete "${song.title}"?\n\nThis cannot be undone.`;
@@ -8124,7 +8143,7 @@
     if (!els.tourOverlay || els.tourOverlay.hidden) return;
     const step = activeWalkthroughSteps[walkthroughStepIndex];
     if (!step) return;
-    const target = document.querySelector(step.target);
+    const target = walkthroughTarget(step);
     if (!target) return;
     const rect = target.getBoundingClientRect();
     const padding = 7;
@@ -8211,11 +8230,19 @@
     }
   }
 
+  // A step can name several places (desktop and phone differ): the first one on screen.
+  function walkthroughTarget(step) {
+    const list = Array.isArray(step.target) ? step.target : [step.target];
+    const shown = el => { if (!el) return false; const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden'; };
+    return list.map(selector => document.querySelector(selector)).find(shown) || null;
+  }
+
   function startWalkthrough(kind = 'main') {
     if (!els.tourOverlay || !els.tourOverlay.hidden) return;
     if (els.resultDialog?.open) els.resultDialog.close();
     walkthroughKind = MODE_WALKTHROUGH_STEPS[kind] ? kind : 'main';
-    activeWalkthroughSteps = walkthroughKind === 'main' ? WALKTHROUGH_STEPS : MODE_WALKTHROUGH_STEPS[walkthroughKind];
+    activeWalkthroughSteps = walkthroughKind === 'main' ? WALKTHROUGH_STEPS : MODE_WALKTHROUGH_STEPS[walkthroughKind].filter(step => walkthroughTarget(step));
+    if (!activeWalkthroughSteps.length) return;
     walkthroughPreviewState = null;
     if (walkthroughKind === 'main') {
       walkthroughPreviewState = {
@@ -8374,7 +8401,7 @@
     const show = tapeWanted();
     tape.visible = show;
     if (!tapeEls.noteTape) return;
-    placeProgressInTape(show && document.body.classList.contains('wide-fit'));
+    placeProgressInTape(show && (document.body.classList.contains('wide-fit') || window.innerWidth <= 760));
     tapeEls.noteTape.hidden = !show;
     if (!show) { tape.top = 0; return; }
     const tapeH = width <= 760 ? 46 : 52;
@@ -9328,7 +9355,7 @@
     document.body.classList.toggle('tablet-fit', tablet);
     document.body.classList.toggle('desktop-fit', desktop);
     document.body.classList.toggle('wide-fit', tablet || desktop);
-    placeProgressInTape((tablet || desktop) && tapeWanted());
+    placeProgressInTape((tablet || desktop || window.innerWidth <= 760) && tapeWanted());
     const before = stage.style.height;
     if (phone) {
       stage.dataset.tabletFit = '1';
