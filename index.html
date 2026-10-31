@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -12,6 +12,10 @@
   <link rel="stylesheet" href="app-files/ethereal-common.css" />
   <link rel="stylesheet" href="app-files/styles.css" />
   <link rel="stylesheet" href="app-files/ethereal-common-layout.css" />
+  <link rel="stylesheet" href="app-files/ethereal-cosmetics.css" />
+  <link rel="stylesheet" href="app-files/ethereal-i18n.css" />
+  <script src="app-files/ethereal-translations.js"></script>
+  <script src="app-files/ethereal-i18n.js"></script>
 </head>
 <body class="app-loading">
   <div class="startup-loader" id="startupLoader" role="status" aria-live="polite" aria-label="Preparing Ethereal Drum Trainer">
@@ -67,9 +71,10 @@
           <p class="eyebrow">NOW PRACTISING</p>
           <div class="song-title-row">
             <h2 id="currentTitle">Moonlit Steps</h2>
-            <span id="currentDifficulty" class="difficulty-badge" data-level="easy">Easy difficulty</span>
-            <span id="currentCollection" class="collection-badge" hidden></span>
+
           </div>
+          <div class="song-meta-row">            <span id="currentDifficulty" class="difficulty-badge" data-level="easy">Easy difficulty</span>
+            <span id="currentCollection" class="collection-badge" hidden></span></div>
         </div>
         <div class="top-actions">
           <a class="donate-btn" href="https://ko-fi.com/anya_and_lolo" target="_blank" rel="noopener noreferrer" aria-label="Donate on Ko-fi" title="Support Ethereal Drum on Ko-fi">
@@ -122,11 +127,7 @@
                 </div>
               </div>
             </div>
-            <div class="stat-pills">
-              <span class="stat-pill" id="scorePill" data-tone="neutral"><b id="scoreValue">0%</b> score</span>
-              <span class="stat-pill" id="streakPill" data-tone="neutral"><b id="streakValue">0</b> streak</span>
-              <span class="stat-pill" id="notesLeftPill" data-tone="notes"><b id="notesLeftValue">0</b> notes left</span>
-            </div>
+
           </div>
 
           <div class="note-stage" id="noteStage">
@@ -135,6 +136,11 @@
             <button class="focus-mode-btn" id="focusModeBtn" type="button" aria-pressed="false" aria-label="Enter focus mode" title="Focus mode">
               <span aria-hidden="true">⛶</span><b>Focus Mode</b>
             </button>
+            <div class="stat-pills stage-score-pills">
+              <span class="stat-pill" id="scorePill" data-tone="neutral"><b id="scoreValue">0%</b> score</span>
+              <span class="stat-pill" id="streakPill" data-tone="neutral"><b id="streakValue">0</b> streak</span>
+              <span class="stat-pill" id="notesLeftPill" data-tone="notes"><b id="notesLeftValue">0</b> notes left</span>
+            </div>
             <div class="rotate-drum-pair" role="group" aria-label="Rotate the tongue drum">
               <button class="rotate-drum-btn" id="rotateLeftBtn" type="button" aria-label="Rotate the drum anticlockwise" title="Rotate anticlockwise"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 12.4a7.6 7.6 0 1 0 2.3-6"></path><path d="M4.4 3.2v4.4h4.4"></path></svg></button>
               <button class="rotate-drum-btn" id="rotateRightBtn" type="button" aria-label="Rotate the drum clockwise" title="Rotate clockwise"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19.4 12.4a7.6 7.6 0 1 1-2.3-6"></path><path d="M19.6 3.2v4.4h-4.4"></path></svg></button>
@@ -957,6 +963,8 @@
   <script src="app-files/demo-catalog.js"></script>
   <script src="app-files/community-upload-config.js"></script>
   <script src="app-files/ethereal-cloud-config.js"></script>
+  <script src="app-files/ethereal-cosmetics.js"></script>
+  <script src="app-files/ethereal-lessons.js"></script>
   <script src="app-files/ethereal-common.js"></script>
   <script src="app-files/app.js"></script>
 </body>
