@@ -9,11 +9,12 @@
   <link rel="manifest" href="app-files/manifest.webmanifest" />
   <link rel="icon" href="data:image/svg+xml,%3Csvg viewBox='-1.05 -1.05 2.1 2.1' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3ClinearGradient id='fP' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23c4b5fd'/%3E%3Cstop offset='1' stop-color='%237665d8'/%3E%3C/linearGradient%3E%3ClinearGradient id='fG' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23ccfbf1'/%3E%3Cstop offset='1' stop-color='%232dd4bf'/%3E%3C/linearGradient%3E%3C/defs%3E%3Ccircle r='1' fill='%23111827' stroke='%238b7cf0' stroke-opacity='.6' stroke-width='0.06'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(0)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(60)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(120)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(180)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fP)' transform='rotate(240)'/%3E%3Crect x='-0.135' y='-0.800' width='0.27' height='0.6' rx='0.135' fill='url(%23fG)' transform='rotate(300)'/%3E%3C/svg%3E" />
   <link rel="apple-touch-icon" href="app-files/icon-192.png" />
-  <link rel="stylesheet" href="app-files/ethereal-common.css" />
+  <link rel="stylesheet" href="app-files/ethereal-common.css?v=35" />
   <link rel="stylesheet" href="app-files/styles.css" />
   <link rel="stylesheet" href="app-files/ethereal-common-layout.css" />
-  <link rel="stylesheet" href="app-files/ethereal-cosmetics.css" />
-  <link rel="stylesheet" href="app-files/ethereal-i18n.css" />
+  <link rel="stylesheet" href="app-files/ethereal-cosmetics.css?v=35" />
+  <link rel="stylesheet" href="app-files/ethereal-i18n.css?v=35" />
+  <link rel="stylesheet" href="app-files/ethereal-achievements.css?v=35-badges1" />
   <script src="app-files/ethereal-translations.js"></script>
   <script src="app-files/ethereal-i18n.js"></script>
 </head>
@@ -111,10 +112,10 @@
               <div class="practice-options" id="practiceOptions">
                 <label class="toggle-label wait-toggle" id="waitToggleLabel"><input type="checkbox" id="waitToggle" /><span>Wait for note</span></label>
                 <select id="waitStyleSelect" class="wait-style-select" aria-label="Wait for note">
-                  <option value="off">Don't wait for note</option>
-                  <option value="game">Wait · Game Mode</option>
-                  <option value="hear">Wait · Play Note</option>
-                  <option value="quiet">Wait · Silent</option>
+                  <option value="off">No wait</option>
+                  <option value="game">Wait: game</option>
+                  <option value="hear">Wait: guide</option>
+                  <option value="quiet">Wait: silent</option>
                 </select>
                 <button class="hint-btn wait-style-hint" type="button" data-hint="Don't wait: the song plays on and you play along. Game Mode: the song stops at each note until you play it, with a happy chime when you get it right. Play Note: the app plays each note first, then waits for you. Silent: the song waits for your note in silence." aria-label="About the Wait for note styles">?</button>
                 <button class="rec-chip" id="recChipBtn" type="button" aria-pressed="false" title="Record your take: the song and your playing"><i aria-hidden="true"></i><span>Rec</span></button><button class="take-chip" id="takeChipBtn" type="button" hidden>▶ Take</button>
@@ -139,7 +140,7 @@
             <div class="stat-pills stage-score-pills">
               <span class="stat-pill" id="scorePill" data-tone="neutral"><b id="scoreValue">0%</b> score</span>
               <span class="stat-pill" id="streakPill" data-tone="neutral"><b id="streakValue">0</b> streak</span>
-              <span class="stat-pill" id="notesLeftPill" data-tone="notes"><b id="notesLeftValue">0</b> notes left</span>
+              <span class="stat-pill" id="notesLeftPill" data-tone="notes"><b id="notesLeftValue">0</b> notes</span>
             </div>
             <div class="rotate-drum-pair" role="group" aria-label="Rotate the tongue drum">
               <button class="rotate-drum-btn" id="rotateLeftBtn" type="button" aria-label="Rotate the drum anticlockwise" title="Rotate anticlockwise"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.6 12.4a7.6 7.6 0 1 0 2.3-6"></path><path d="M4.4 3.2v4.4h4.4"></path></svg></button>
@@ -156,13 +157,14 @@
             </div>
             <button class="stage-song-name" id="stageSongName" type="button" aria-label="Choose another song"></button>
             <div class="stage-dock" id="stageDock" role="group" aria-label="Play controls">
+              <button type="button" class="dock-btn dock-rotate" id="dockRotateBtn" aria-label="Rotate clockwise" title="Rotate clockwise"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.4 12.4a7.6 7.6 0 1 1-2.3-6M19.6 3.2v4.4h-4.4"/></svg></button>
               <button class="dock-btn" id="dockLoopBtn" type="button" aria-label="Loop song" aria-pressed="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 2l3 3-3 3"></path><path d="M3 11V9a4 4 0 0 1 4-4h13"></path><path d="M7 22l-3-3 3-3"></path><path d="M21 13v2a4 4 0 0 1-4 4H4"></path></svg></button>
               <button class="dock-btn dock-play" id="dockPlayBtn" type="button" aria-label="Play"><span class="play-icon" aria-hidden="true"></span></button>
               <button class="dock-btn" id="dockMetronomeBtn" type="button" aria-label="Metronome" aria-pressed="false"><span class="metronome-icon" aria-hidden="true"><span class="metronome-body"></span><span class="metronome-arm"></span></span></button>
             </div>
             <button class="speed-cycle-btn" id="speedCycleBtn" type="button" aria-label="Speed: tap to slow down" title="Tap to change the speed"><small>Speed</small><b id="speedCycleValue">1×</b></button>
             <div class="stage-practice-chips" id="stagePracticeChips" role="group" aria-label="Practice options">
-              <label class="stage-chip stage-tile stage-wait-tile" id="stageWaitBtn" title="Wait for note"><small>Wait</small><b>Off</b><select id="stageWaitSelect" aria-label="Wait for note"><option value="off">Don't wait for note</option><option value="game">Wait · Game Mode</option><option value="hear">Wait · Play Note</option><option value="quiet">Wait · Silent</option></select></label>
+              <label class="stage-chip stage-tile stage-wait-tile" id="stageWaitBtn" title="Wait for note"><small>Wait</small><b>Off</b><select id="stageWaitSelect" aria-label="Wait for note"><option value="off">No wait</option><option value="game">Wait: game</option><option value="hear">Wait: guide</option><option value="quiet">Wait: silent</option></select></label>
               <button class="stage-chip stage-tile" id="stageMicBtn" type="button" aria-pressed="false"><small><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path></svg>Mic</small><span>Off</span></button>
             </div>
             <div class="stage-judge" id="stageJudge" aria-hidden="true"></div>
@@ -172,7 +174,7 @@
               <div class="mobile-stage-stats" aria-label="Current practice statistics">
                 <span class="stat-pill mobile-stage-pill" id="mobileScorePill" data-tone="neutral"><b id="mobileScoreValue">0%</b> Score</span>
                 <span class="stat-pill mobile-stage-pill" id="mobileStreakPill" data-tone="neutral"><b id="mobileStreakValue">0</b> Streak</span>
-                <span class="stat-pill mobile-stage-pill" data-tone="notes"><b id="mobileNotesLeftValue">0</b> Notes left</span>
+                <span class="stat-pill mobile-stage-pill" data-tone="notes"><b id="mobileNotesLeftValue">0</b> Notes</span>
               </div>
             </div>
             <div class="tuner-panel" id="tunerPanel" hidden aria-live="polite">
@@ -217,7 +219,7 @@
             <span class="ab-loop-status" id="abLoopStatus"></span>
           </div>
 
-          <div class="transport">
+          <div class="transport"><button type="button" class="dock-btn transport-rotate" id="transportRotateBtn" aria-label="Rotate clockwise" title="Rotate clockwise"><svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M19.4 12.4a7.6 7.6 0 1 1-2.3-6M19.6 3.2v4.4h-4.4"/></svg></button>
             <button class="round-btn small" id="loopBtn" aria-label="Loop song" aria-pressed="false" title="Loop song">
               <svg class="loop-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                 <path d="M17 2l3 3-3 3"></path>
@@ -257,7 +259,7 @@
                 <svg class="mic-icon" viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="11" rx="3"></rect><path d="M5.5 10.5a6.5 6.5 0 0 0 13 0"></path><path d="M12 17v4"></path><path d="M8.6 21h6.8"></path></svg>
                 Microphone off
               </button>
-              <button class="mic-toggle view-mode-btn" id="viewModeBtn" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><span>Focus</span></button>
+              <button class="mic-toggle view-mode-btn" id="viewModeBtn" type="button"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><span>Screen</span></button>
               <button class="soft-btn fullscreen-btn" id="fullscreenBtn" type="button" aria-label="Full screen" title="Full screen: hide the system bars"><svg class="fs-enter" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"></path></svg><svg class="fs-exit" viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"></path></svg><span class="fs-label">Full screen</span></button>
               <button class="hint-btn" type="button" data-hint="Turn the microphone on to play your real drum: the app hears which note you strike. It works in Practice, Wait for note and Tuner. Listen never uses it." aria-label="About the microphone">?</button>
               <span class="mic-status" id="micStatus" aria-live="polite"></span>
@@ -538,7 +540,7 @@
       <div class="my-drum-badges" id="myDrumBadges"></div>
       <div class="my-drum-layout">
         <section class="my-drum-visual-card">
-          <div class="my-drum-preview" id="myDrumPreview" aria-label="Your configured drum"></div>
+          <div class="my-drum-preview" id="myDrumPreview" aria-label="Your configured drum"></div><div class="settings-note-view"><button type="button" class="soft-btn" data-settings-view="radial">Drum centre</button><button type="button" class="soft-btn" data-settings-view="lanes">Falling lanes</button></div>
         </section>
         <section class="my-drum-note-card">
           <div class="my-drum-section-head"><strong>Main drum notes</strong><span id="myDrumNoteCount"></span></div>
@@ -965,6 +967,10 @@
   <script src="app-files/ethereal-cloud-config.js"></script>
   <script src="app-files/ethereal-cosmetics.js"></script>
   <script src="app-files/ethereal-lessons.js"></script>
+  <script src="app-files/ethereal-device.js"></script>
+  <script src="app-files/ethereal-country.js"></script>
+  <script src="app-files/ethereal-badges.js"></script>
+  <script src="app-files/ethereal-feedback.js"></script>
   <script src="app-files/ethereal-common.js"></script>
   <script src="app-files/app.js"></script>
 </body>
