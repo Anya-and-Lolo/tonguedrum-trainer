@@ -1829,8 +1829,8 @@
     const title = songTitleParts(song.title);
     const folder = songFolderInfo(song, title);
     const difficulty = songDifficulty(song);
-    els.currentTitle.setAttribute('translate', isDemoSong(song) ? 'yes' : 'no');
-    tapeEls.stageSongName?.setAttribute('translate', isDemoSong(song) ? 'yes' : 'no');
+    els.currentTitle.setAttribute('translate', isDemoSong(song) || song.id === DRILL_ID ? 'yes' : 'no');
+    tapeEls.stageSongName?.setAttribute('translate', isDemoSong(song) || song.id === DRILL_ID ? 'yes' : 'no');
     els.currentTitle.textContent = title.displayTitle;
     if (tapeEls.stageSongName) tapeEls.stageSongName.innerHTML = `<b>${escapeHtml(title.displayTitle)}</b>${folder.label ? `<small>${escapeHtml(folder.label)}</small>` : ''}`;
     if (els.currentCollection) {
@@ -1860,8 +1860,8 @@
     button.className = `song-item ${song.id === state.selectedId ? 'active' : ''}`;
     button.title = title.fullTitle;
     button.innerHTML = `
-      <span class="song-item-title"><strong${isDemoSong(song) ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span>
-      <span>${song.bpm} BPM · ${metrics.noteCount} notes${sourceLabel ? ` · ${escapeHtml(sourceLabel)}` : ''}${BEST.badge(song.id)}</span>
+      <span class="song-item-title"><strong${isDemoSong(song) || song.id === DRILL_ID ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span>
+      <span>${song.bpm} BPM · ${metrics.noteCount} notes${BEST.badge(song.id)}</span>
       ${song.description ? `<span class="song-item-about">${escapeHtml(capitalise(song.description))}</span>` : ''}`;
     button.addEventListener('click', () => {
       selectSong(song.id);
@@ -1928,6 +1928,7 @@
     if (today) els.songList.prepend(today);
     const player = q || !GAME ? null : COMMON.playerCard({ game: GAME, onOpen: openHubDialog });
     if (player) els.songList.prepend(player);
+    if (SMART) SMART.mount(els.songList);
     updateLibraryCounts();
   }
 
@@ -1983,7 +1984,7 @@
       const card = document.createElement('button');
       card.type = 'button';
       card.className = `album-card ${song.id === state.selectedId ? 'selected' : ''}`;
-      card.innerHTML = `${songCoverMarkup(song)}<span class="album-copy"><span class="album-title-row"><strong${isDemoSong(song) ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span><small>${song.bpm} BPM · ${metrics.noteCount} notes</small><span class="album-source">${escapeHtml(title.collection || 'Community gallery')}</span>${song.description ? `<span class="album-about">${escapeHtml(capitalise(song.description))}</span>` : ''}</span>`;
+      card.innerHTML = `${songCoverMarkup(song)}<span class="album-copy"><span class="album-title-row"><strong${isDemoSong(song) || song.id === DRILL_ID ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span><small>${song.bpm} BPM · ${metrics.noteCount} notes</small><span class="album-source">${escapeHtml(title.collection || 'Community gallery')}</span>${song.description ? `<span class="album-about">${escapeHtml(capitalise(song.description))}</span>` : ''}</span>`;
       card.addEventListener('click', () => { selectSong(song.id); els.songLibraryDialog?.close(); els.sidebar.classList.remove('open'); });
       els.libraryGrid.appendChild(card);
     });
@@ -2148,12 +2149,6 @@
       pad.addEventListener('pointerdown', () => { COMMON.haptic(HAPTICS_KEY); handleUserNote(i); });
       body.appendChild(pad);
     });
-    if (!hasCenterTongue(state.instrument.count)) {
-      const center = document.createElement('div');
-      center.className = 'center-dome';
-      center.textContent = 'Ethereal';
-      body.appendChild(center);
-    }
     container.appendChild(body);
   }
 
@@ -4584,7 +4579,7 @@
 
   function restartSectionLoopCycle(now = performance.now()) {
     if (!state.sectionLoop || !Number.isFinite(state.loopA) || !Number.isFinite(state.loopB)) return;
-    if (SMART?.active && smartLoopPass() === 'done') return;
+    if (SMART?.active && smartLoopPass()) return;
     state.currentTime = state.loopA;
     state.streak = 0;
     state.parsedNotes.forEach(note => {
@@ -4665,7 +4660,7 @@
     if (!rec) { els.resultRecommendedBtn.innerHTML=''; return; }
     const next = rec.song, title = songTitleParts(next.title), difficulty = rec.difficulty;
     const shared = rec.intersection===1 ? '1 shared pitch' : `${rec.intersection} shared pitches`;
-    els.resultRecommendedBtn.innerHTML = `${songCoverMarkup(next)}<span class="result-recommended-copy"><span><strong${isDemoSong(song) ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span><small>${shared} · ${next.bpm} BPM</small></span><b class="result-recommended-arrow" aria-hidden="true">→</b>`;
+    els.resultRecommendedBtn.innerHTML = `${songCoverMarkup(next)}<span class="result-recommended-copy"><span><strong${isDemoSong(song) || song.id === DRILL_ID ? '' : ' translate="no"'}>${escapeHtml(title.displayTitle)}</strong><em class="difficulty-badge" data-level="${difficulty.level}">${difficulty.label}</em></span><small>${shared} · ${next.bpm} BPM</small></span><b class="result-recommended-arrow" aria-hidden="true">→</b>`;
   }
 
   function playRecommendedFromResults() {
@@ -4817,7 +4812,17 @@
     if (els.speedCycleValue) els.speedCycleValue.textContent = `${value}×`;
   }
 
+  PROGRESS_KEYS.repair = 'ethereal-drum-repair-v1';
   var SMART = COMMON.createSmartLoop({
+    storageKey: PROGRESS_KEYS.repair,
+    onPause: () => pausePlayback(),
+    micActive: () => Boolean(state.micEnabled),
+    onContinue: () => { seekToTime(state.loopA, { clearSectionHits: true }); togglePlayback().catch(reportPlaybackStartError); },
+    onRestore: ctx => {
+      if (!Number.isFinite(ctx.from) || !Number.isFinite(ctx.to) || ctx.to <= ctx.from) return false;
+      const song = state.songs.find(item => item.id === ctx.id); if (!song || !JOURNEY.isSongOpen(ctx.id) || COMMON.codeHash(JSON.stringify([song.sequence, song.bpm, song.scaleType, song.noteCount])) !== ctx.signature) return false;
+      selectSong(ctx.id); els.sidebar.classList.remove('open'); setMode('practice'); state.loop = false; state.loopA = ctx.from; state.loopB = ctx.to; state.sectionLoop = true; updateABLoopUI(); return true;
+    },
     setSpeed: setSmartSpeed,
     toast: message => showToast(message, 'success'),
     chime: () => playChime(),
@@ -4826,7 +4831,7 @@
       pausePlayback();
       updateTransportUI();
       updateABLoopUI();
-      showToast(`Smart loop done: clean at ${COMMON.speedLabel(speed)}! Now play the whole song.`, 'success');
+
     }
   });
 
@@ -4857,7 +4862,7 @@
     state.loopA = section.from;
     state.loopB = Math.min(state.duration, section.to);
     state.sectionLoop = true;
-    SMART.start(COMMON.smartLoopSpeeds(target, SPEED_STEPS()), section.firstBar === section.lastBar ? `bar ${section.firstBar}` : `bars ${section.firstBar}-${section.lastBar}`);
+    SMART.start(COMMON.smartLoopSpeeds(target, SPEED_STEPS()), section.firstBar === section.lastBar ? `bar ${section.firstBar}` : `bars ${section.firstBar}-${section.lastBar}`, { id: state.selectedId, title: state.songs.find(item => item.id === state.selectedId)?.title, from: state.loopA, to: state.loopB, signature: COMMON.codeHash(JSON.stringify([state.songs.find(item => item.id === state.selectedId)?.sequence, state.songs.find(item => item.id === state.selectedId)?.bpm, state.songs.find(item => item.id === state.selectedId)?.scaleType, state.songs.find(item => item.id === state.selectedId)?.noteCount])) });
     seekToTime(state.loopA, { clearSectionHits: true });
     updateTransportUI();
     updateABLoopUI();
@@ -4871,7 +4876,7 @@
     isActive: () => state.playing && state.mode !== 'tuner',
     onGoal: streak => {
       playChime();
-      showToast(`Daily goal reached! ${streak} ${streak === 1 ? 'day' : 'days'} in a row.`, 'success');
+      showToast(`Daily goal reached! ${streak} practice days collected.`, 'success');
     }
   });
   PROGRESS_KEYS.practice = 'ethereal-drum-practice-v1';
@@ -4901,6 +4906,7 @@
   });
 
   function openDrillsDialog() {
+    els.sidebar.classList.remove('open');
     COACH.open();
   }
 
@@ -4940,7 +4946,7 @@
     setMode('practice');
     renderSongList();
     COACH?.showBanner();
-    showToast(drill.about || 'Listen first, then practise the complete phrase.', 'success');
+    if (!drill.lesson) showToast(drill.about || 'Listen first, then practise the complete phrase.', 'success');
   }
 
 
@@ -5921,7 +5927,7 @@
   }
 
   function appIsInstalled() {
-    return window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    return ['standalone', 'fullscreen', 'minimal-ui'].some(mode => window.matchMedia?.(`(display-mode: ${mode})`).matches) || window.navigator.standalone === true;
   }
 
   // Install button: the browser's own install prompt where there is one, and short
@@ -5930,6 +5936,8 @@
     if (!els.installBtn) return;
     let deferredPrompt = null;
     els.installBtn.hidden = appIsInstalled();
+    window.matchMedia?.('(display-mode: standalone)').addEventListener?.('change', () => { els.installBtn.hidden = appIsInstalled(); });
+    window.addEventListener('pageshow', () => { els.installBtn.hidden = appIsInstalled(); });
     window.addEventListener('beforeinstallprompt', event => {
       event.preventDefault();
       deferredPrompt = event;
@@ -8924,6 +8932,9 @@
     setupInstallButton();
     bindTapeScrub();
     document.querySelectorAll('.view-segment').forEach(btn => btn.addEventListener('click', () => setVisualMode(btn.dataset.view)));
+    document.getElementById('transportRotateBtn')?.addEventListener('click', () => els.rotateRightBtn.click());
+    document.getElementById('dockRotateBtn')?.addEventListener('click', () => els.rotateRightBtn.click());
+    document.querySelectorAll('[data-settings-view]').forEach(button => button.addEventListener('click', () => setVisualMode(button.dataset.settingsView)));
     els.mobileViewToggleBtn?.addEventListener('click', () => {
       setVisualMode(state.visualMode === 'radial' ? 'lanes' : 'radial');
     });

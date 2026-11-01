@@ -1,0 +1,15 @@
+/* User-supplied artwork, detail cards and post-run unlocks. */
+(function(){
+ 'use strict';
+ const base=typeof document!=='undefined' && document.currentScript?.src?new URL('badges/',document.currentScript.src).href:'app-files/badges/';
+ const ids=['trial0','trial1','trial2','explorer','comeback','mic','week','fullspeed','flawless','composer','flow','take','patient','star1','star2','star3','star4','five','weekend','night','first','constellation','encore','perfect100','beginner','slow'];
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ function art(id){return ids.includes(id)?`<img class="achievement-art badge-art badge-bitmap" src="${base}${id}.webp" alt="" width="480" height="480" decoding="async">`:'';}
+ function dateOf(at,locale='en'){const n=Number(at);if(!Number.isFinite(n)||n<946684800000||n>8640000000000000)return '';try{return new Intl.DateTimeFormat(locale,{year:'numeric',month:'long',day:'numeric'}).format(n);}catch{return new Date(n).toISOString().slice(0,10);}}
+ function detailHtml(b){const date=dateOf(b.at,window.EtherealI18n?.language||'en');return `<article class="badge-detail-card${b.at?' earned':' locked'}"><button type="button" class="icon-btn badge-detail-close" data-badge-close aria-label="Close">×</button><div class="badge-detail-aura" aria-hidden="true"></div><p class="badge-detail-kicker">${b.at?'YOUR ACHIEVEMENT':'YOUR NEXT DISCOVERY'}</p><div class="badge-detail-art">${art(b.id)}${b.at?'':'<span class="badge-detail-lock" aria-label="Locked">'+lock()+'</span>'}</div><h2>${esc(b.name)}</h2><p class="badge-detail-state">${b.at?'Unlocked':'Not unlocked yet'}</p><section><h3>How to earn it</h3><p>${esc(b.text)}</p></section>${b.at?`<p class="badge-earned-date">${date?`<span>Unlocked on</span><time datetime="${new Date(Number(b.at)).toISOString()}" translate="no">${esc(date)}</time>`:'Unlocked earlier. Exact date unavailable.'}</p>`:'<p class="badge-detail-encouragement">Every practice brings you closer.</p>'}<p class="badge-detail-xp">+${Number(b.xp)||0} XP</p><button type="button" class="primary-btn" data-badge-close>Keep exploring</button></article>`;}
+ function lock(){return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>';}
+ let dialog;
+ function open(b){if(!b)return;if(!dialog){dialog=document.createElement('dialog');dialog.className='dialog badge-detail-dialog';document.body.appendChild(dialog);}const prior=document.activeElement;dialog.innerHTML=detailHtml(b);dialog.setAttribute('aria-label',window.EtherealI18n?.t(b.name)||b.name);dialog.querySelectorAll('[data-badge-close]').forEach(button=>button.onclick=()=>dialog.close());dialog.addEventListener('close',()=>prior?.isConnected && prior.focus(),{once:true});dialog.showModal();}
+ function bind(root,game){root.querySelectorAll('[data-badge]').forEach(button=>button.addEventListener('click',()=>open(game.badges().find(b=>b.id===button.dataset.badge))));}
+ window.EtherealBadges={art,dateOf,detailHtml,open,bind,ids};
+})();

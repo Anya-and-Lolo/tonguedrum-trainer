@@ -12,6 +12,7 @@
     { id: 'bronze', name: 'Bronze', tier: 'Starter', palette: ['#e4b37d','#946133','#3d240f'] },
     { id: 'silver', name: 'Silver', tier: 'Journey', unlock: { boss: 0 }, palette: ['#f8fafc','#afb8c8','#5c6475'] },
     { id: 'gold', name: 'Gold', tier: 'Journey', unlock: { boss: 1 }, palette: ['#fff0ba','#c69732','#6a4710'] },
+    { id: 'starlight-opal', name: 'Starlight opal', tier: 'Constellation', unlock: { weekly: 1 }, palette: ['#fff5e2','#88c8da','#675a9c'], texture: 'starlight-opal.svg' },
     { id: 'champagne', name: 'Champagne', tier: 'Journey', unlock: { level: 5 }, palette: ['#f8eaca','#bea17c','#6d593c'] },
     { id: 'patina', name: 'Patina teal', tier: 'Rare', unlock: { streak: 7 }, palette: ['#79c6b8','#286f69','#103a39'] },
     { id: 'marble', name: 'Aqua satin', tier: 'Rare', unlock: { level: 10 }, palette: ['#d8fff3','#65c8b7','#1e746d'] },
@@ -52,7 +53,9 @@
     { id: '', name: 'No engraving' },
     { id: 'mandala', name: 'Celestial mandala', unlock: gate },
     { id: 'filigree', name: 'Gold filigree', unlock: rare({ workouts: 7 }) },
-    { id: 'constellation', name: 'Star engraving', unlock: rare({ combo: 100 }) },
+    { id: 'constellation', name: 'Star engraving', tongue: false, unlock: rare({ combo: 100 }) },
+    { id: 'spiral', name: 'Quiet spiral', unlock: gate },
+    { id: 'hammered', name: 'Hammered lights', unlock: rare({ notes: 5000 }) },
     { id: 'relief', name: 'Embossed border', unlock: rare({ runs: 75 }) },
     { id: 'script', name: 'Astral glyphs', unlock: rare({ level: 30 }) }
   ];
@@ -80,12 +83,25 @@
     for (let i = 0; i < count; i++) result += `<g transform="rotate(${i * 360/count})"><path d="M-.029 -.98 Q-.028 -1.034 .004 -1.036 Q.032 -1.029 .026 -.989" fill="none" stroke="var(--weave,#cba675)" stroke-width=".018"/><path d="M-.019 -1.001 Q-.002 -.97 .024 -.99" fill="none" stroke="var(--weave-light,#f1d3a0)" stroke-width=".009"/></g>`;
     return result + '</g><g class="cos-protective"><circle r="1.005" fill="none" stroke="#070b12" stroke-width=".09"/><circle r="1.025" fill="none" stroke="#343b45" stroke-width=".013"/><circle r=".975" fill="none" stroke="#89919c" stroke-opacity=".32" stroke-width=".008"/></g>';
   }
-  function patternSvg(selected) {
+  function patternSvg(selected, tongue = false) {
     let mandala = '<g class="cos-pattern cos-mandala">';
     for (let i=0;i<32;i++) mandala += `<g transform="rotate(${i*11.25})"><path d="M0 -.31 Q-.058 -.37 0 -.46 Q.058 -.37 0 -.31 M0 -.86 Q-.025 -.918 0 -.947 Q.025 -.918 0 -.86"/><circle cx="0" cy="-.484" r=".009"/></g>`;
     for (let i=0;i<24;i++) mandala += `<g transform="rotate(${i*15})"><path d="M0 -.12 Q-.035 -.17 0 -.224 Q.035 -.17 0 -.12 M0 -.224 Q-.063 -.258 0 -.303 Q.063 -.258 0 -.224 M0 -.50 Q-.035 -.55 0 -.59 Q.035 -.55 0 -.50"/><circle cx="0" cy="-.62" r=".009"/><path d="M-.017 -.637 L0 -.671 L.017 -.637 L0 -.61Z"/></g>`;
     for (const r of [.115,.225,.294,.306,.493,.507,.686,.858,.953]) mandala+=`<circle r="${r}"/>`;
     mandala+='</g>';
+    if (tongue) {
+      // A small central flower leaves the tongue cuts clear. No annular rings or intervening drops.
+      mandala = '<g class="cos-pattern cos-mandala">';
+      for (let i=0;i<16;i++) mandala += `<path transform="rotate(${i*22.5})" d="M0 -.045 Q-.055 -.10 0 -.205 Q.055 -.10 0 -.045 M0 -.205 Q-.06 -.235 0 -.272 Q.06 -.235 0 -.205"/>`;
+      for (let i=0;i<8;i++) mandala += `<path transform="rotate(${i*45})" d="M0 -.59 Q-.035 -.64 0 -.70 Q.035 -.64 0 -.59"/>`;
+      mandala += '</g>';
+    }
+    let spiral = '<g class="cos-pattern cos-spiral">';
+    const points = Array.from({length:180},(_,i)=>{const a=i/179*Math.PI*5.4,r=.014+i/179*.295;return `${i?'L':'M'}${(Math.cos(a)*r).toFixed(4)} ${(Math.sin(a)*r).toFixed(4)}`;}).join(' ');
+    spiral += `<path d="${points}" stroke-width=".010"/></g>`;
+    let hammered = '<g class="cos-pattern cos-hammered">';
+    for (const [r,n] of [[.31,20],[.83,48],[.90,54]]) for (let i=0;i<n;i++) {const a=(i+.5)*Math.PI*2/n; hammered+=`<circle cx="${(Math.sin(a)*r).toFixed(4)}" cy="${(Math.cos(a)*r).toFixed(4)}" r=".017" fill="#080e20" fill-opacity=".25" stroke="#fce8b4" stroke-opacity=".55" stroke-width=".006"/>`;}
+    hammered += '</g>';
     let filigree='<g class="cos-pattern cos-filigree">';
     for(let i=0;i<48;i++) filigree += `<path transform="rotate(${i*7.5})" d="M-.05 -.895 Q-.025 -.966 0 -.903 Q.025 -.966 .05 -.895 M0 -.924 Q-.03 -.85 0 -.824 Q.03 -.85 0 -.924"/>`;
     filigree+='<circle r=".878"/><circle r=".962"/></g>';
@@ -101,7 +117,7 @@
     script+='</g>';
     let stars='<g class="cos-pattern cos-constellation">';
     for(let i=0;i<12;i++) stars+=`<g transform="rotate(${i*30})"><path d="M-.1 -.43 L-.06 -.54 L.09 -.5 L.14 -.66"/><circle cx="-.1" cy="-.43" r=".009"/><circle cx="-.06" cy="-.54" r=".012"/><circle cx=".09" cy="-.5" r=".008"/><circle cx=".14" cy="-.66" r=".012"/></g>`;
-    const designs={mandala,filigree,relief,script,constellation:stars+'</g>'};
+    const designs={mandala,filigree,relief,script,spiral,hammered,constellation:stars+'</g>'};
     return selected === undefined ? Object.values(designs).join('') : designs[selected] || '';
   }
   // The same zig-zag positions and ellipses as the playable D Kurd handpan.
@@ -114,7 +130,7 @@
   }
   function tonguePath(shape='',w=.18,inner=.35,outer=.93) {
     if(shape==='lotus') return `M${-w*.78} ${-(outer)} C${-w*.7} ${-(outer-.16)} ${-w*1.10} ${-(inner+.18)} ${-w*.66} ${-(inner+.065)} Q${-w*.18} ${-(inner+.065)} 0 ${-(inner)} Q${w*.18} ${-(inner+.065)} ${w*.66} ${-(inner+.065)} C${w*1.10} ${-(inner+.18)} ${w*.7} ${-(outer-.16)} ${w*.78} ${-(outer)}`;
-    return `M${-w} ${-(outer)} C${-w*.96} ${-(outer-.16)} ${-w*.78} ${-(inner+.26)} ${-w*.78} ${-(inner+.13)} Q${-w*.78} ${-(inner)} 0 ${-(inner)} Q${w*.78} ${-(inner)} ${w*.78} ${-(inner+.13)} C${w*.78} ${-(inner+.26)} ${w*.96} ${-(outer-.16)} ${w} ${-(outer)}`;
+    return `M${-w} ${-(outer)} C${-w*.96} ${-(outer-.16)} ${-w*.78} ${-(inner+.26)} ${-w*.78} ${-(inner+.13)} C${-w*.78} ${-(inner+.035)} ${-w*.40} ${-(inner)} 0 ${-(inner)} C${w*.40} ${-(inner)} ${w*.78} ${-(inner+.035)} ${w*.78} ${-(inner+.13)} C${w*.78} ${-(inner+.26)} ${w*.96} ${-(outer-.16)} ${w} ${-(outer)}`;
   }
   function tongueCutSvg() {
     const cut=d=>`<path class="td-cut-depth" d="${d}"/><path class="td-cut-edge" d="${d}"/>`;
@@ -126,6 +142,7 @@
     const [a,b,c]=s.palette;
     const texture=s.texture ? `<image href="${asset(s.texture)}" x="-1" y="-1" width="2" height="2" preserveAspectRatio="xMidYMid slice" clip-path="url(#${id}-clip)"/>` : '';
     const tone=options.tongue;
+    if (tone && e.pattern === 'constellation') e.pattern = '';
     let pads='';
     const makePad=(x,y,rx,ry,central=false,index=0)=>`<g class="cos-tone-field" data-note="${central?'D':index}" transform="translate(${x} ${y})"><ellipse rx="${rx}" ry="${ry}" fill="url(#${id}-pad)" stroke="${a}" stroke-opacity=".35" stroke-width=".012"/><ellipse rx="${rx*(central?.42:.5)}" ry="${ry*(central?.42:.5)}" class="cos-preview-dip" fill="url(#${id}-dip)" stroke="#fff" stroke-opacity=".22" stroke-width=".006"/>${options.labels?`<text y=".026" text-anchor="middle" fill="white" stroke="#08111e" stroke-width=".014" paint-order="stroke" font-family="system-ui" font-weight="700" font-size=".105">${central?'D':index}</text>`:''}</g>`;
     const cut=(d,inner=false)=>`<path class="cos-cut-depth" d="${d}" fill="none" stroke="#040611" stroke-width="${s.id==='nebula'?(inner?'.024':'.032'):(inner?'.012':'.018')}" stroke-linecap="round"/>${s.id==='nebula'?`<path class="cos-cut-gold" d="${d}" fill="none" stroke="url(#${id}-cut-gold)" stroke-width="${inner?'.009':'.013'}" stroke-linecap="round"/>`:''}`;
@@ -138,7 +155,7 @@
       pads+=makePad(0,0,.27,.24,true);
       handpanFields(options.noteCount||9).forEach(p=>{pads+=`<g transform="translate(${p.x} ${p.y}) rotate(${p.rot})">${makePad(0,0,p.rx,p.ry,false,p.num)}</g>`;});
     }
-    return `<svg class="cos-drum-preview" data-skin="${s.id}" data-rim="${e.rim}" data-accent="${e.accent}" data-pattern="${e.pattern}" data-shape="${e.shape||''}" viewBox="-1.09 -1.09 2.18 2.18" aria-hidden="true"><defs><linearGradient id="${id}-cut-gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1bc"/><stop offset=".32" stop-color="#dba64d"/><stop offset=".62" stop-color="#92601e"/><stop offset="1" stop-color="#ffe3a0"/></linearGradient><radialGradient id="${id}-shell" cx="35%" cy="28%" r="80%"><stop stop-color="${a}"/><stop offset=".52" stop-color="${b}"/><stop offset="1" stop-color="${c}"/></radialGradient><radialGradient id="${id}-pad" cx="37%" cy="25%"><stop stop-color="${a}" stop-opacity=".65"/><stop offset=".7" stop-color="${b}" stop-opacity=".42"/><stop offset="1" stop-color="${c}" stop-opacity=".8"/></radialGradient><radialGradient id="${id}-dip" cx="35%" cy="25%"><stop stop-color="var(--dip-a,${b})"/><stop offset=".55" stop-color="var(--dip-b,${c})"/><stop offset="1" stop-color="var(--dip-c,${b})"/></radialGradient><clipPath id="${id}-clip"><circle r=".984"/></clipPath></defs><circle r="1" fill="url(#${id}-shell)" stroke="${a}" stroke-width=".02"/>${texture}<ellipse cx="-.28" cy="-.38" rx=".54" ry=".18" transform="rotate(-32)" fill="white" opacity=".06"/>${pads}${patternSvg(e.pattern)}${e.rim ? rimSvg(options.large?96:48) : ''}</svg>`;
+    return `<svg class="cos-drum-preview" data-skin="${s.id}" data-rim="${e.rim}" data-accent="${e.accent}" data-pattern="${e.pattern}" data-shape="${e.shape||''}" viewBox="-1.09 -1.09 2.18 2.18" aria-hidden="true"><defs><linearGradient id="${id}-cut-gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#fff1bc"/><stop offset=".32" stop-color="#dba64d"/><stop offset=".62" stop-color="#92601e"/><stop offset="1" stop-color="#ffe3a0"/></linearGradient><radialGradient id="${id}-shell" cx="35%" cy="28%" r="80%"><stop stop-color="${a}"/><stop offset=".52" stop-color="${b}"/><stop offset="1" stop-color="${c}"/></radialGradient><radialGradient id="${id}-pad" cx="37%" cy="25%"><stop stop-color="${a}" stop-opacity=".65"/><stop offset=".7" stop-color="${b}" stop-opacity=".42"/><stop offset="1" stop-color="${c}" stop-opacity=".8"/></radialGradient><radialGradient id="${id}-dip" cx="35%" cy="25%"><stop stop-color="var(--dip-a,${b})"/><stop offset=".55" stop-color="var(--dip-b,${c})"/><stop offset="1" stop-color="var(--dip-c,${b})"/></radialGradient><clipPath id="${id}-clip"><circle r=".984"/></clipPath></defs><circle r="1" fill="url(#${id}-shell)" stroke="${a}" stroke-width=".02"/>${texture}<ellipse cx="-.28" cy="-.38" rx=".54" ry=".18" transform="rotate(-32)" fill="white" opacity=".06"/>${pads}${patternSvg(e.pattern,tone)}${e.rim ? rimSvg(options.large?96:48) : ''}</svg>`;
   }
   function enhanceDrum(svg, prefix) {
     const defs=svg.querySelector('defs'), body=svg.querySelector('.hp-body');
@@ -170,7 +187,7 @@
   }
   function enhanceTongue(body) {
     const overlay=el('svg',{viewBox:'-1.09 -1.09 2.18 2.18',class:'cos-td-overlay','aria-hidden':'true'});
-    overlay.innerHTML=patternSvg()+rimSvg(96);body.appendChild(overlay);
+    overlay.innerHTML=patternSvg(undefined,true)+rimSvg(96);body.appendChild(overlay);
   }
   window.EtherealCosmetics={skins,rims,accents,patterns,nebulas,shapes,handpanFields,tonguePath,tongueCutSvg,catalog,gate,asset,skinOf,effective,preview,enhanceDrum,enhanceTongue,apply};
 })();

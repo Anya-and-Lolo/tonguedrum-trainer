@@ -9,6 +9,16 @@
     {id:'332',name:'The 3 · 3 · 2 groove',tag:'GROOVE',skill:'Feel an eight-note cycle grouped 3 + 3 + 2 while the underlying four beats stay steady.',patterns:[[[1,1.5],[2,1.5],[3,1]],[[1,1.5],[3,1.5],[5,1]],[[1,.5],[2,.5],[3,.5],[1,.5],[3,.5],[5,.5],[2,.5],[3,.5]]],tips:['Count ONE two three · ONE two three · ONE two.','Keep the spacing while changing the melody.','Fill in the subdivisions; keep the group accents in your body.']},
     {id:'layers',name:'Anchor & answering melody',tag:'MUSICAL LAYERS',skill:'Build a phrase one layer at a time: a home note, an answer, then a small melodic variation.',patterns:[[[1,1],[0,1],[1,1],[0,1]],[[1,1],[3,1],[1,1],[5,1]],[[1,.5],[3,.5],[2,1],[1,.5],[5,.5],[3,1]]],tips:['Make the home note steady, without striking harder.','Add just one answering note in each space.','Keep the anchor recognisable as the answer grows.']}
   ];
+  // Tongue drum phrases give the resonant steel room to ring. These are separate
+  // musical patterns, rather than handpan hand-stroke drills with renamed notes.
+  const tongueSkills={
+    pulse:{patterns:[[[1,1],[0,2],[5,1]],[[1,1],[3,1],[0,1],[5,1]],[[1,.5],[3,.5],[0,1],[5,1],[0,1]]],tips:['Strike once, then listen to the ring through the rest.','Keep the pulse steady as the higher tongue answers.','Leave space after the short pair so the sound can bloom.']},
+    hands:{patterns:[[[1,1],[5,1],[0,1],[3,1]],[[1,.5],[3,.5],[5,1],[0,1],[2,1]],[[1,.5],[3,.5],[5,.5],[3,.5],[0,1],[2,1]]],tips:['Alternate hands or mallets gently between the low and high tongues.','Keep the two short notes light; do not chase the ringing sound.','Let the rest separate each melodic answer.']},
+    doubles:{patterns:[[[1,.5],[1,.5],[0,1],[3,1],[0,1]],[[3,.5],[3,.5],[5,1],[0,1],[1,1]],[[5,.5],[5,.5],[3,.5],[3,.5],[0,1],[1,1]]],tips:['Let the mallet rebound for the second tap, then leave a rest.','Repeat a pair on a higher tongue without pressing into the steel.','Keep the pairs soft and give the low ending time to ring.']},
+    arpeggio:{patterns:[[[1,1],[3,1],[5,1],[0,1]],[[1,.5],[3,.5],[5,1],[3,1],[0,1]],[[1,.5],[3,.5],[5,.5],[6,.5],[5,1],[1,1]]],tips:['Find tongues 1, 3 and 5, then listen to their combined resonance.','Return to tongue 3 with the same gentle touch.','Reach the higher tongue with a small movement and return home.']},
+    '332':{patterns:[[[1,1.5],[5,1.5],[0,1]],[[1,1.5],[3,1.5],[5,1]],[[1,.5],[0,1],[3,.5],[5,1],[3,.5],[0,.5]]],tips:['Feel the 3 + 3 + 2 spacing, including the silent ending.','Let the three pitches share the same relaxed pulse.','Keep the group accents clear while leaving the rests open.']},
+    layers:{patterns:[[[1,1],[0,1],[5,1],[0,1]],[[1,1],[3,1],[5,1],[0,1]],[[1,.5],[3,.5],[0,1],[5,.5],[3,.5],[1,1]]],tips:['Use a low tongue as home and a high tongue as the answer.','Add the middle pitch without filling every space.','Connect the melody, then let the last low note ring.']}
+  };
   const goals=[75,80,85], phaseNames=['Find the movement','Add a musical layer','Make it flow'];
   const repeat=(array,n)=>Array.from({length:n},(_,i)=>array[i%array.length]);
   const cleanBars=source=>String(source?.sequence||'').replace(/^\s*#.*$/gm,'').split('|').map(x=>x.trim()).filter(Boolean);
@@ -18,14 +28,14 @@
       const bars=cleanBars(source), take=[2,4,8][phase], selected=bars.slice(0,take), count=Math.max([4,3,2][phase],Math.ceil([8,12,16][phase]/selected.length));
       return {lesson:id,phase,sourceId:source.id,title:`Prepare · ${source.title} · ${phase+1}/3`,about:['Learn the opening slowly. Listen first; then find each note.','Connect the opening phrases without stopping.','Join the longer section and get ready for the full song.'][phase],bpm:Math.max(35,Math.round((source.bpm||80)*[.55,.75,.9][phase])),beatsPerBar:source.beatsPerBar||4,sequence:Array.from({length:count},()=>selected.join(' | ')).join(' | ')+' |',goal:goals[phase],length:`${selected.length} phrases × ${count}`};
     }
-    const lesson=lessons.find(l=>l.id===id)||lessons[0], pattern=lesson.patterns[phase], bars=[8,12,16][phase];
+    const lesson=lessons.find(l=>l.id===id)||lessons[0], pattern=(tongue?tongueSkills[lesson.id].patterns:lesson.patterns)[phase], bars=[8,12,16][phase];
     let strike=0;
     const seq=repeat([pattern],bars).map(events=>events.map(([note,d])=>{
       const hand=lesson.id==='doubles'?(Math.floor(strike++/2)%2?'R':'L'):(strike++%2?'R':'L');
       const label=note===0?(tongue?'0':'-'):tongue?String(note):`${note===1?'D':note}${hand}`;
       return label+(d===1?'':`:${d}`);
     }).join(' ')).join(' | ')+' |';
-    return {lesson:lesson.id,phase,title:`${lesson.name} · ${phase+1}/3`,about:lesson.tips[phase],bpm:[60,72,84][phase],beatsPerBar:4,sequence:seq,goal:goals[phase],length:`${bars} bars`};
+    return {lesson:lesson.id,phase,title:`${lesson.name} · ${phase+1}/3`,about:(tongue?tongueSkills[lesson.id].tips:lesson.tips)[phase],bpm:[60,72,84][phase],beatsPerBar:4,sequence:seq,goal:goals[phase],length:`${bars} bars`};
   }
   function create({app,tongue=false,source,onStart,onSong,onListen,onPractice=()=>{},onLayout=()=>{},canPlay=()=>true}) {
     const key=`${app}-lessons-v1`, esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -44,7 +54,7 @@
       if(!active){if(banner){banner.remove();onLayout();}return;}
       if(!banner){const toolbar=document.querySelector('.trainer-toolbar');if(!toolbar)return;banner=document.createElement('section');banner.className='lesson-banner';toolbar.before(banner);}
       const e=active.exercise;
-      banner.innerHTML=`<div><small>GUIDED PRACTICE · STEP ${e.phase+1} OF 3 · ${e.length}</small><b>${esc(e.title)}</b><p>${esc(e.about)}</p><span>Goal: ${e.goal}% · Practice · whole run at 1×</span></div><div class="lesson-banner-actions"><button type="button" data-coach-listen>Listen first</button><button type="button" data-coach-practise>Practise step</button><button type="button" data-coach-open>Lesson plan</button></div>`;
+      banner.innerHTML=`<div><small>GUIDED PRACTICE · STEP ${e.phase+1}/3</small><b>${esc(e.title)}</b><p>${esc(e.about)}</p><span>Goal: ${e.goal}% · Practice · whole run at 1×</span></div><div class="lesson-banner-actions"><button type="button" data-coach-listen>Listen</button><button type="button" data-coach-practise>Practice</button><button type="button" data-coach-open>See plan</button></div>`;
       banner.querySelector('[data-coach-listen]').onclick=onListen;
       banner.querySelector('[data-coach-practise]').onclick=onPractice;
       banner.querySelector('[data-coach-open]').onclick=()=>open(active.id,active.source);
@@ -54,7 +64,7 @@
       if(!active)return null;
       const passed=Boolean(eligible && mode==='practice' && speed>=1 && accuracy>=active.exercise.goal);
       lastPassed=passed;
-      if(!active.recorded && passed){const data=read();data.scores=data.scores||{};const k=stamp(active.id,active.phase,active.source);data.scores[k]=Math.max(score(active.id,active.phase,active.source),accuracy);localStorage.setItem(key,JSON.stringify(data));active.recorded=true;}
+      if(!active.recorded && passed){const data=read();data.scores=data.scores||{};const k=stamp(active.id,active.phase,active.source);data.scores[k]=Math.max(score(active.id,active.phase,active.source),accuracy);localStorage.setItem(key,JSON.stringify(data));active.recorded=true;window.dispatchEvent(new CustomEvent('ethereal:lesson'));}
       const next=passed?(active.phase<2?'Next learning step →':active.id==='song'?'Play the full song →':'Choose another lesson →'):'Practise this step again';
       return {passed,next,text:passed?(active.phase<2?'Step mastered. You are ready to add the next layer.':active.id==='song'?'Preparation complete. Take the phrase into the full song.':'Three steps complete. Keep the movement relaxed when you use it in a song.'):`Aim for ${active.exercise.goal}% in Practice at 1×. Listen to the phrase, slow down to learn it, then try the full step again.`};
     }

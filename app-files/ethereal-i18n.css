@@ -13,3 +13,37 @@ html:lang(zh-CN) .eyebrow,html:lang(zh-CN) .j-eyebrow,html:lang(zh-CN) .j-badge{
 html:lang(ru) .speed-row-tail button{white-space:normal;line-height:1.12;font-size:12px;padding-left:4px;padding-right:4px;}
 html:lang(ru) #micBtn svg{flex-shrink:0;}
 @media(max-width:640px){.language-control{padding:4px 6px;gap:3px;}.language-select{max-width:90px;font-size:12px;}html:lang(ru) .top-actions{gap:5px;}html:lang(ru) .j-level{font-size:12px;}html:lang(ru) .j-badge{font-size:12px;}html:lang(ru) .j-paths button{padding:9px 7px;}}
+
+/* r33: one square language control, full native names in its menu. */
+.top-actions .language-control{position:relative;display:grid;grid-template-rows:20px 14px;justify-items:center;align-content:center;width:54px;min-width:54px;height:54px;gap:2px;padding:5px;border-radius:12px;}
+.top-actions .language-control svg{width:19px;height:19px;}
+.language-code{font:750 11px/1.2 system-ui;letter-spacing:.04em;color:#cceae9;}
+.top-actions .language-control select{position:absolute;inset:0;width:100%;height:100%;max-width:none;opacity:0;cursor:pointer;direction:ltr;}
+.language-control:focus-within{outline:2px solid #5eead4;outline-offset:2px;}
+html:lang(ja) body,html:lang(ja) button,html:lang(ja) select{font-family:system-ui,"Yu Gothic","Hiragino Kaku Gothic ProN",sans-serif;}
+html:lang(ar) body,html:lang(ar) button,html:lang(ar) select{font-family:"Segoe UI",Tahoma,Arial,sans-serif;letter-spacing:0!important;}
+html[dir="rtl"] .app-shell,html[dir="rtl"] .main-panel,html[dir="rtl"] .topbar,html[dir="rtl"] .trainer-grid,html[dir="rtl"] .trainer-card,html[dir="rtl"] .top-actions{direction:ltr;}
+html[dir="rtl"] .song-heading,html[dir="rtl"] .sidebar,html[dir="rtl"] .dialog,html[dir="rtl"] .lesson-banner>div:first-child,html[dir="rtl"] .lesson-school{direction:rtl;}
+html[dir="rtl"] .song-heading h2,html[dir="rtl"] .lesson-banner p,html[dir="rtl"] .lesson-plan,html[dir="rtl"] .hub-body{text-align:start;}
+html[dir="rtl"] .eyebrow,html[dir="rtl"] .journey-title,html[dir="rtl"] .j-eyebrow,html[dir="rtl"] .lesson-banner small{letter-spacing:0!important;}
+.note-stage,.stage-drum-wrap,.handpan-svg,.drum-body,.high-drum-wrap,.note-tape,.progress-wrap,.transport,.stage-dock,.hand-legend,#printSheet,.sequence-input,textarea,input[type="range"]{direction:ltr;}
+html[dir="rtl"] .stage-song-name,html[dir="rtl"] .stage-hand-legend em,html[dir="rtl"] .stage-score-pills .stat-pill,html[dir="rtl"] .mobile-stage-stats span{unicode-bidi:plaintext;}
+@media(max-width:760px){.top-actions .language-control{width:36px;min-width:36px;height:38px;grid-template-rows:15px 12px;padding:3px;gap:1px;border-radius:10px;}.top-actions .language-control svg{width:15px;height:15px;}.language-code{font-size:10px;}}
+
+@media(max-width:1100px){html[dir="rtl"] .topbar .song-heading h2{text-align:center;}}
+
+/* r35: consistent control labels and compact spacing. */
+.speed-row .toggle-label:has(#countInToggle),.speed-row #micBtn,.speed-row #viewModeBtn{font-size:13px!important;font-weight:750!important;line-height:1.2!important;}
+.speed-row .toggle-label:has(#countInToggle)>span{font:inherit!important;}
+.speed-control>label,.speed-cycle-btn small,.stage-tile small{text-transform:none!important;letter-spacing:normal!important;}
+.today-actions button{line-height:1.12!important;}
+@media(max-width:1100px){html .topbar .top-actions,html:lang(ru) .topbar .top-actions,html:lang(zh-CN) .topbar .top-actions{justify-content:center!important;}.topbar .song-meta-row{box-sizing:border-box;width:100%!important;margin-left:0!important;justify-content:center!important;}html[dir=rtl] .topbar .song-heading h2,html[dir=rtl] .topbar .song-heading .eyebrow{text-align:center;}}
+.main-panel{container-type:inline-size;container-name:trainer-main;}
+@container trainer-main (max-width:1050px){
+ html .topbar{display:grid;grid-template-columns:40px minmax(0,1fr) 40px!important;grid-template-areas:"menu title extra" "actions actions actions"!important;gap:8px;align-items:start;}
+ .topbar .menu-btn{grid-area:menu;position:relative;z-index:2;}.topbar .song-heading{grid-area:1/1/2/-1;width:100%;padding:0 38px;justify-self:center;text-align:center;pointer-events:none;}
+ .topbar .song-heading h2,.topbar .song-heading .eyebrow{width:100%;text-align:center!important;white-space:normal;padding:0;}
+ .topbar .song-title-row,.topbar .song-meta-row{width:100%!important;margin:0!important;justify-content:center;}
+ html .topbar .top-actions{grid-area:actions;width:100%;margin:0;justify-self:center;justify-content:center!important;}
+}
+@media(min-width:761px) and (max-width:1100px){body .note-stage>.rotate-drum-pair{top:12px!important;}body .note-stage .stage-hand-legend{top:78px!important;}}

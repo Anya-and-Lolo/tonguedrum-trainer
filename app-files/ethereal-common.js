@@ -404,7 +404,7 @@
     const btn = document.getElementById('viewModeBtn');
     if (!btn) return;
     const focus = window.innerWidth <= 1100;
-    btn.lastElementChild.textContent = focus ? 'Focus' : document.fullscreenElement ? 'Exit full' : 'Full screen';
+    btn.lastElementChild.textContent = focus ? 'Screen' : document.fullscreenElement ? 'Exit full' : 'Full screen';
     btn.title = focus ? 'Focus mode: just the drum and the controls' : 'Full screen';
     btn.hidden = !focus && !fullscreenSupported();
   }
@@ -603,12 +603,23 @@
         const f = incoming.practice.freeze;
         mine.freeze = { since: [mine.freeze?.since, f.since].filter(Boolean).sort()[0] || dayStamp(), days: { ...(f.days || {}), ...(mine.freeze?.days || {}) } };
       }
+      mine.achievedDays = [...new Set([...(mine.achievedDays || []), ...(incoming.practice.achievedDays || [])])];
       writeJson(keys.practice, mine);
     }
     if (keys.lessons && incoming.lessons?.scores) {
       const mine = readJson(keys.lessons, {scores:{}}); mine.scores = mine.scores || {};
       Object.entries(incoming.lessons.scores).forEach(([id,n]) => { if(Number.isFinite(n) && n >= 0 && n <= 100) mine.scores[id] = Math.max(Number(mine.scores[id]) || 0,n); });
       writeJson(keys.lessons,mine);
+    }
+    if (keys.country && incoming.country && window.EtherealCountry) {
+      writeJson(keys.country, window.EtherealCountry.mergeCountry(readJson(keys.country,null),incoming.country));
+    }
+    if (keys.devices && incoming.devices && window.EtherealDevice) {
+      writeJson(keys.devices, window.EtherealDevice.merge(readJson(keys.devices, {}), incoming.devices));
+    }
+    if (keys.repair && incoming.repair?.context) {
+      const mine = readJson(keys.repair, null);
+      if (!mine || Number(incoming.repair.updatedAt) > Number(mine.updatedAt)) writeJson(keys.repair, incoming.repair);
     }
     if (keys.journey && incoming.journey && typeof incoming.journey === 'object') {
       const mine = readJson(keys.journey, null) || { drills: {} };
@@ -625,9 +636,18 @@
       out.c = { ...(theirs.c || {}), ...(mine.c || {}) };
       Object.entries(theirs.c || {}).forEach(([name, value]) => { if (Number.isFinite(Number(value)) && typeof value === 'number') out.c[name] = Math.max(Number(out.c[name]) || 0, value); });
       out.badges = { ...(theirs.badges || {}), ...(mine.badges || {}) };
+      Object.keys(out.badges).forEach(id=>{const dates=[theirs.badges?.[id],mine.badges?.[id]].map(Number).filter(n=>Number.isFinite(n)&&n>0);if(dates.length)out.badges[id]=Math.min(...dates);});
       out.tiers = { ...(theirs.tiers || {}) };
       Object.entries(mine.tiers || {}).forEach(([id, tier]) => { out.tiers[id] = Math.max(Number(out.tiers[id]) || 0, Number(tier) || 0); });
       out.owned = [...new Set([...(theirs.owned || []), ...(mine.owned || [])])];
+      out.activeDays = [...new Set([...(theirs.activeDays || []), ...(mine.activeDays || [])])];
+      out.weeklyClaims = { ...(theirs.weeklyClaims || {}), ...(mine.weeklyClaims || {}) };
+      const aWeek = mine.weekly, bWeek = theirs.weekly;
+      if (aWeek && bWeek && aWeek.stamp === bWeek.stamp) {
+        out.weekly = { ...bWeek, ...aWeek, claimed: Boolean(aWeek.claimed || bWeek.claimed) };
+        for (const n of ['runs', 'notes', 'lessons']) out.weekly[n] = Math.max(aWeek[n] || 0, bWeek[n] || 0);
+        for (const n of ['days', 'songs']) out.weekly[n] = [...new Set([...(aWeek[n] || []), ...(bWeek[n] || [])])];
+      } else if (aWeek && bWeek) out.weekly = !aWeek.claimed ? aWeek : !bWeek.claimed ? bWeek : aWeek.stamp > bWeek.stamp ? aWeek : bWeek;
       for (const name of ['day', 'daily', 'workout']) {
         const a = mine[name], b = theirs[name];
         const stamp = value => String(value?.stamp || value?.day || '');
@@ -639,7 +659,7 @@
             out[name].swapped = Boolean(a.swapped || b.swapped);
             out[name].done = { ...(b.done || {}), ...(a.done || {}) };
           } else if (name === 'workout' && JSON.stringify(a.steps) === JSON.stringify(b.steps)) {
-            out[name].done = a.steps.map((value, i) => Boolean(value || b.done?.[i]));
+            out[name].done = a.steps.map((_, i) => Boolean(a.done?.[i] || b.done?.[i]));
             out[name].bonus = Boolean(a.bonus || b.bonus);
           } else if (name === 'day') {
             Object.keys({ ...a, ...b }).forEach(key => { if (typeof a[key] === 'number' || typeof b[key] === 'number') out[name][key] = Math.max(Number(a[key]) || 0, Number(b[key]) || 0); });
@@ -688,51 +708,79 @@
     return list;
   }
 
-  function createSmartLoop({ setSpeed, toast, onMastered, chime }) {
-    const s = { active: false, speeds: [], index: 0, fails: 0, label: '' };
-    return {
-      get active() { return s.active; },
-      get speed() { return s.speeds[s.index]; },
-      get label() { return s.label; },
-      start(speeds, label = '') {
-        s.speeds = speeds.length ? speeds : [1];
-        s.index = 0;
-        s.fails = 0;
-        s.label = label;
-        s.active = true;
-        setSpeed(s.speeds[0]);
-        toast(`Smart loop: ${label ? `${label} ` : ''}at ${speedLabel(s.speeds[0])}. Play it clean and it speeds up.`);
+  // Every repetition ends at a deliberate rest. The plan survives closing the app.
+  function createSmartLoop({ setSpeed, toast, onMastered, chime, storageKey, onPause = () => {}, onContinue = () => {}, onRestore = () => false, micActive = () => false }) {
+    let s = { active: false, waiting: false, speeds: [], index: 0, fails: 0, label: '', context: null };
+    let dialog = null, recognition = null, card = null;
+    const persist = () => { if (storageKey) writeJson(storageKey, { ...s, active: false, waiting: true, updatedAt: Date.now() }); };
+    const pending = () => {
+      const v = storageKey && readJson(storageKey, null);
+      return v?.context && Array.isArray(v.speeds) && v.speeds.length && v.speeds.every(n => Number.isFinite(n) && n >= .1 && n <= 3) && Number.isInteger(v.index) && v.index >= 0 && v.index < v.speeds.length ? v : null;
+    };
+    const stopVoice = () => { if (recognition) { recognition.onend = null; recognition.abort(); recognition = null; } };
+    const dismiss = () => { stopVoice(); if (dialog?.open) dialog.close(); };
+    const clear = () => { s.active = false; s.waiting = false; if (storageKey) { try { localStorage.removeItem(storageKey); } catch {} } dismiss(); paintCard(); };
+    const proceed = () => {
+      if (!s.active || !s.waiting) return;
+      s.waiting = false; dismiss(); setSpeed(s.speeds[s.index]); persist(); onContinue(s.context); paintCard();
+    };
+    function showRest(message = 'Your saved practice is ready.', done = false) {
+      if (!document.createElement) return;
+      if (!dialog) { dialog = document.createElement('dialog'); dialog.className = 'dialog smart-rest-dialog'; document.body.appendChild(dialog); dialog.addEventListener('cancel', () => { stopVoice(); s.active = false; paintCard(); }); dialog.addEventListener('close', stopVoice); }
+      dialog.innerHTML = `<section class="smart-rest"><small>TIME TO BREATHE</small><h2>${done ? 'Section mastered!' : 'A moment for you'}</h2><p>${esc(message)}</p>${!done ? `<div class="smart-next"><b>${esc(s.label)}</b><span>Next round: ${speedLabel(s.speeds[s.index])}</span></div><p>Relax your hands. Continue when you are ready. Your place is saved.</p>` : '<p>Take this movement back into your song whenever you feel ready.</p>'}<div class="smart-rest-actions">${done ? '<button type="button" class="primary-btn" data-finish>Done</button>' : '<button type="button" class="primary-btn" data-continue>Ready, continue</button><button type="button" class="soft-btn" data-later>Finish later</button>'}</div>${!done && micActive() ? '<button type="button" class="soft-btn" data-ready-voice>Use voice: ready</button><p class="smart-voice-status">Optional on-device recognition. Audio stays on this device.</p>' : ''}</section>`;
+      dialog.querySelector('[data-continue]')?.addEventListener('click', proceed);
+      dialog.querySelector('[data-later]')?.addEventListener('click', () => { s.active = false; persist(); dismiss(); paintCard(); });
+      dialog.querySelector('[data-finish]')?.addEventListener('click', dismiss);
+      dialog.querySelector('[data-ready-voice]')?.addEventListener('click', async event => {
+        const status = dialog.querySelector('.smart-voice-status'), button = event.currentTarget;
+        const Speech = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const lang = ({ru:'ru-RU','zh-CN':'zh-CN',es:'es-ES',ja:'ja-JP',ar:'ar-SA'})[window.EtherealI18n?.language] || 'en-US';
+        button.disabled = true;
+        try {
+          if (!Speech || !('processLocally' in Speech.prototype) || !Speech.available || await Speech.available({ langs: [lang], processLocally: true }) !== 'available') throw Error('unavailable');
+          recognition = new Speech(); recognition.processLocally = true; recognition.lang = lang; recognition.continuous = false;
+          recognition.onresult = e => { const text = e.results[0][0].transcript.toLowerCase(); if (/\bready\b|готов|准备好了|好了|list[oa]|準備|جاهز/.test(text)) proceed(); else status.textContent = 'Say ready, or press Continue.'; };
+          recognition.onerror = () => { status.textContent = 'Voice is unavailable here. Use the Continue button.'; button.disabled = false; };
+          recognition.onend = () => { button.disabled = false; };
+          recognition.start(); status.textContent = 'Listening on this device: say ready.';
+        } catch { status.textContent = 'On-device voice is unavailable for this language. Use the Continue button.'; button.disabled = false; }
+      });
+      if (!dialog.open) dialog.showModal();
+    }
+    function paintCard() {
+      if (!card) return;
+      const v = pending(); card.hidden = !v || (s.active && !s.waiting);
+      if (!v) return;
+      card.innerHTML = `<b>Continue your saved practice</b><span>${esc(v.context.title || '')} · ${esc(v.label)} · ${speedLabel(v.speeds[v.index])}</span><button type="button" class="soft-btn" data-resume>Resume practice</button><button type="button" class="smart-discard" data-discard>Discard this plan</button>`;
+      card.querySelector('[data-resume]').onclick = () => api.resume(); card.querySelector('[data-discard]').onclick = clear;
+    }
+    const api = {
+      get active() { return s.active; }, get waiting() { return s.waiting; }, get speed() { return s.speeds[s.index]; }, get label() { return s.label; },
+      pending,
+      continue: proceed,
+      mount(parent) { card = document.createElement('section'); card.className = 'smart-resume-card'; parent.prepend(card); paintCard(); },
+      start(speeds, label = '', context = null) { dismiss(); s = { active: true, waiting: false, speeds: speeds.length ? speeds : [1], index: 0, fails: 0, label, context }; setSpeed(s.speeds[0]); persist(); paintCard(); toast?.(`Smart loop: ${label} at ${speedLabel(s.speeds[0])}. Rest between every round.`); },
+      stop() { if (s.active) { s.active = false; persist(); } dismiss(); paintCard(); },
+      clear,
+      resume() {
+        const v = pending(); if (!v) return false;
+        if (!onRestore(v.context)) { toast?.('This song has changed or is unavailable. Start a new mistakes practice.'); return false; }
+        s = { ...v, active: true, waiting: true }; onPause(); showRest(); paintCard(); return true;
       },
-      stop() { s.active = false; },
-      // One pass of the loop is over: how did it go?
       pass(total, hits) {
-        if (!s.active) return null;
+        if (!s.active || s.waiting) return null;
+        onPause();
         const clean = total > 0 && hits >= total;
+        let message = `${hits} of ${total} notes. We will repeat this section at the same speed.`;
         if (clean) {
-          s.fails = 0;
-          chime?.();
-          if (s.index >= s.speeds.length - 1) {
-            s.active = false;
-            onMastered(s.speeds[s.index]);
-            return 'done';
-          }
-          s.index += 1;
-          setSpeed(s.speeds[s.index]);
-          toast(`Clean! Next round at ${speedLabel(s.speeds[s.index])}.`);
-          return 'faster';
-        }
-        s.fails += 1;
-        if (s.fails >= 2 && s.index > 0) {
-          s.index -= 1;
-          s.fails = 0;
-          setSpeed(s.speeds[s.index]);
-          toast(`A little slower: ${speedLabel(s.speeds[s.index])}. You've got this.`);
-          return 'slower';
-        }
-        toast(`${hits} of ${total} notes. Once more at ${speedLabel(s.speeds[s.index])}.`);
-        return 'again';
+          s.fails = 0; chime?.();
+          if (s.index >= s.speeds.length - 1) { const speed = s.speeds[s.index]; clear(); onMastered?.(speed); showRest('You played every note at your target speed.', true); return 'done'; }
+          s.index += 1; message = 'Every note landed. Next, try the same movement a little faster.';
+        } else if (++s.fails >= 2 && s.index > 0) { s.index -= 1; s.fails = 0; message = 'Let us give the movement more space. The next round is a little slower.'; }
+        s.waiting = true; persist(); paintCard(); showRest(message); return 'paused';
       }
     };
+    return api;
   }
 
   // The bar (or two short bars) with the most missed notes. times: missed note times in
@@ -925,53 +973,24 @@
       return Object.values(entry).reduce((sum, value) => sum + (Number(value) || 0), 0);
     };
     const save = () => {
-      const days = Object.keys(data.days).sort();
-      if (days.length > 400) days.slice(0, days.length - 400).forEach(day => delete data.days[day]);
       writeJson(storageKey, data);
       unsaved = 0;
     };
     const notify = () => listeners.forEach(fn => { try { fn(); } catch {} });
-    // One automatic freeze; seven new daily goals refill the one-slot reserve.
-    if (!data.freeze) data.freeze = { since: dayStamp(), days: {} };
-    const freezeBalance = () => {
-      const f = data.freeze;
-      const goals = Object.keys(data.days).filter(day => day >= f.since && secondsOn(day) >= data.goal * 60);
-      const events = [...goals.map(day => [day, 'goal']), ...Object.keys(f.days || {}).map(day => [day, 'freeze'])].sort((a, b) => a[0].localeCompare(b[0]));
-      let tokens = 1, count = 0;
-      events.forEach(([, kind]) => { if (kind === 'freeze') tokens = Math.max(0, tokens - 1); else if (++count % 7 === 0) tokens = 1; });
-      return tokens;
+    const collectDays = () => {
+      const before = (data.achievedDays || []).length;
+      data.achievedDays = [...new Set([...(data.achievedDays || []), ...Object.keys(data.days).filter(day => secondsOn(day) >= data.goal * 60)])];
+      if (data.achievedDays.length !== before) save();
+      return data.achievedDays.length;
     };
-    const protectYesterday = () => {
-      const date = new Date(); date.setDate(date.getDate() - 1);
-      const yesterday = dayStamp(date); date.setDate(date.getDate() - 1);
-      data.freeze = data.freeze || { since: dayStamp(), days: {} };
-      data.freeze.days = data.freeze.days || {};
-      if (!data.freeze.days[yesterday] && secondsOn(yesterday) < data.goal * 60 && secondsOn(dayStamp(date)) >= data.goal * 60 && freezeBalance() > 0) {
-        data.freeze.days[yesterday] = Date.now(); save();
-      }
-      return yesterday;
-    };
+    collectDays();
     const log = {
       key: storageKey,
       get goal() { return data.goal; },
-      setGoal(minutes) { data.goal = Math.max(1, Number(minutes) || 10); save(); notify(); },
+      setGoal(minutes) { collectDays(); data.goal = Math.max(1, Number(minutes) || 10); save(); notify(); },
       todaySeconds() { return secondsOn(dayStamp()); },
-      streak() {
-        protectYesterday();
-        const need = data.goal * 60;
-        const date = new Date();
-        if (secondsOn(dayStamp(date)) < need) date.setDate(date.getDate() - 1);
-        let count = 0;
-        for (let i = 0; i < 400; i += 1) {
-          const day = dayStamp(date);
-          if (secondsOn(day) >= need) count += 1;
-          else if (!data.freeze.days[day]) break;
-          date.setDate(date.getDate() - 1);
-        }
-        return count;
-      },
-      freezeStatus() { const yesterday = protectYesterday(); return { tokens: freezeBalance(), protected: Boolean(data.freeze.days[yesterday]) }; },
-      reload() { data = load(); data.freeze = data.freeze || { since: dayStamp(), days: {} }; notify(); },
+      streak() { return collectDays(); },
+      reload() { data = load(); collectDays(); notify(); },
       onUpdate(fn) { listeners.add(fn); },
       save
     };
@@ -1005,8 +1024,8 @@
     const done = minutes >= goal;
     const pct = Math.min(100, Math.round((minutes / goal) * 100));
     return `<div class="today-row">
-        <span class="today-flame${streak ? ' lit' : ''}" title="Days in a row with your goal reached">${FLAME}<b>${streak}</b></span>
-        <span class="today-copy"><b>${done ? 'Goal reached today!' : `Today ${minutes} of ${goal} min`}</b><small>${streak === 1 ? '1 day in a row' : `${streak} days in a row`}</small></span>
+        <span class="today-flame${streak ? ' lit' : ''}" title="Practice days collected. Breaks never reset them.">${FLAME}<b>${streak}</b></span>
+        <span class="today-copy"><b>${done ? 'Goal reached today!' : `Today ${minutes} of ${goal} min`}</b><small>${streak} practice days collected</small></span>
         <label class="today-goal" title="Daily goal"><select aria-label="Daily goal">${[5, 10, 15, 20, 30].map(value => `<option value="${value}"${value === goal ? ' selected' : ''}>${value} min</option>`).join('')}</select></label>
       </div>
       <div class="today-bar${done ? ' done' : ''}"><i style="width:${pct}%"></i></div>`;
@@ -1309,7 +1328,9 @@
   const consentHtml = appName => `<div class="privacy-text">
     <p class="privacy-title"><b>Save your progress to the cloud</b> (optional)</p>
     <p>${esc(appName)} keeps your random sync code, the name or nickname you choose and your practice progress with Google, so you can restore your progress and use it on your other devices.</p>
-    <p>Your cloud save includes the songs you played, scores, stars, attempts, practice time and dates, and whether you use a phone or a computer. No email address or sign-up is needed. Recordings and location are not included. We do not sell your data.</p>
+    <p>Your cloud save includes the songs you played, scores, stars, attempts, practice time and dates, and whether you use a phone or a computer. No email address or sign-up is needed. Recordings and precise location are not included. We do not sell your data.</p>
+    <p>Cloud saves also include your chosen interface language and device details: browser, device type, available model, screen and window sizes, and app version. We do not store your IP address or precise location.</p>
+    <p><b>Country preferences.</b> You can choose a country to help improve translations and special song collections. If you leave Automatic selected when saving, <a href="https://country.is/" target="_blank" rel="noopener noreferrer">Country.is</a> receives your network IP to return an approximate country. We keep only the country, its source and the lookup date. We do not keep the IP. VPNs can change the estimate.</p>
     <p>Your progress is uploaded only after you agree. You can stop cloud saves on a device at any time, and remove your cloud save with <b>Delete progress</b>.</p>
     <p>Read our <button type="button" class="link-btn" data-privacy>Privacy Policy</button> for details about storage, keeping and deleting saves, and how to contact us.</p>
   </div>`;
@@ -1318,7 +1339,7 @@
   // Who to write to: an email when one is set in ethereal-cloud-config.js
   // (window.ETHEREAL_PRIVACY_EMAIL), otherwise a message through the Ko-fi page.
   const KOFI_URL = 'https://ko-fi.com/anya_and_lolo';
-  const POLICY_UPDATED = '29 October 2026';
+  const POLICY_UPDATED = '1 November 2026';
 
   function policyHtml(appName) {
     const email = String(window.ETHEREAL_PRIVACY_EMAIL || '').trim();
@@ -1330,13 +1351,16 @@
       <p class="policy-date">Last updated: ${POLICY_UPDATED}</p>
       <h3>1. Who we are</h3>
       <p>The Ethereal trainers (Ethereal Handpan and Ethereal Drum, here “the apps”) are made by ${owner ? esc(owner) + ', ' : ''}an independent developer based in Australia (“we”). We are responsible for the information described here. Privacy contact: ${contact}.</p>
+      <p>Cloud saves also include your chosen interface language and device details: browser, device type, available model, screen and window sizes, and app version. We do not store your IP address or precise location.</p>
       <h3>2. What stays on your device</h3>
       <p>Your practice progress, settings, your own songs and drafts, and the name you type are kept in your browser’s storage on this device. They are not sent to us unless you turn on cloud saves or send a song to the community gallery.</p>
       <p><b>Microphone.</b> If you turn it on, the sound is analysed on your device to recognise notes. We do not receive or keep your audio. Recordings you make with <b>Rec</b> stay on your device; you can download them yourself.</p>
       <p>Clearing your browser data, uninstalling the app or changing devices can remove progress that is only on this device.</p>
       <h3>3. Optional cloud save</h3>
-      <p>Only if you agree in <b>Save progress</b>, we keep: a randomly generated sync code; the name or nickname you choose; which app it is; whether you use a phone or a computer; the songs you played with your best scores, stars and speed; your attempts; practice minutes and dates; your daily goal and song path progress; and when you first and last saved. No email address or sign-up is needed, and you can use a nickname. Recordings, audio and location are not included.</p>
+      <p>Only if you agree in <b>Save progress</b>, we keep: a randomly generated sync code; the name or nickname you choose; which app it is; whether you use a phone or a computer; the songs you played with your best scores, stars and speed; your attempts; practice minutes and dates; your daily goal and song path progress; and when you first and last saved. No email address or sign-up is needed, and you can use a nickname. Recordings, audio and precise location are not included.</p>
       <p>We use it to save, restore and sync your progress between your devices, and to help you if you ask (for example when you lose your code). Where the EU or UK GDPR applies, our legal basis is your consent.</p>
+    <p><b>Country preferences.</b> You can choose a country to help improve translations and special song collections. If you leave Automatic selected when saving, <a href="https://country.is/" target="_blank" rel="noopener noreferrer">Country.is</a> receives your network IP to return an approximate country. We keep only the country, its source and the lookup date. We do not keep the IP. VPNs can change the estimate.</p>
+      <p>Translation reports are optional. When you press Send report, we receive the text, suggestion and comment you enter, together with the interface language, window width and app version. Reports are stored in our private Google Sheet to help improve translations. They do not include your sync code or player progress.</p>
       <h3>4. Sending a song to the community gallery</h3>
       <p>If you send a song, we receive the song itself (its title, the artist or arranger name you typed, its notes and settings) so we can review it. Approved songs are published in the apps for everyone. Please do not put personal details in a song you send.</p>
       <h3>5. Who else is involved</h3>
@@ -1385,7 +1409,10 @@
   }
 
   function createCloud({ app, appName, keys, stats, onMerged, toast }) {
+    window.EtherealFeedback?.install({app,appName});
     const url = String(window.ETHEREAL_PROGRESS_SYNC_URL || '').trim();
+    keys.devices = `${app}-devices-v1`;
+    keys.country = `${app}-country-v1`;
     const stateKey = `${app}-cloud-v1`;
     let s = readJson(stateKey, null) || {};
     let timer = 0;
@@ -1400,9 +1427,23 @@
       return result;
     }
 
+    const rememberCountry = code => {
+      if (!window.EtherealCountry) return;
+      writeJson(keys.country,window.EtherealCountry.choose(code));
+      s.countryConsentAt=Date.now();save();
+    };
+    async function resolveCountry() {
+      if (!window.EtherealCountry) return;
+      const before=readJson(keys.country,null);
+      const resolved=await window.EtherealCountry.resolve(before,{allowed:Boolean(s.code && s.countryConsentAt)});
+      writeJson(keys.country,window.EtherealCountry.mergeCountry(resolved,readJson(keys.country,null)));
+    }
     async function pushNow(extra = {}) {
       if (!s.code) return;
-      await call('save', { nickname: s.nickname || '', stats: stats(), device: navigator.userAgent.includes('Mobile') ? 'phone' : 'computer', data: collectProgress(keys), ...extra });
+      await Promise.all([window.EtherealDevice?.enrich(),resolveCountry()]);
+      const devices = window.EtherealDevice?.snapshot({ id: deviceId(), language: window.EtherealI18n?.language || 'en', previous: readJson(keys.devices, {}) }) || {};
+      writeJson(keys.devices, devices);
+      await call('save', { nickname: s.nickname || '', stats: stats(), device: devices[deviceId()]?.type || 'unknown', deviceInfo: {id:deviceId(),...devices[deviceId()]}, data: collectProgress(keys), ...extra });
       s.lastSync = Date.now();
       save();
     }
@@ -1432,14 +1473,17 @@
         clearTimeout(timer);
         timer = setTimeout(() => pushNow().catch(() => {}), 4000);
       },
-      sync: () => syncNow(),
+      sync: countryCode => { if(countryCode!==undefined)rememberCountry(countryCode);return syncNow(); },
+      country: () => window.EtherealCountry?.cleanCountry(readJson(keys.country,null)),
+      countryEnabled: () => Boolean(s.countryConsentAt),
       push: () => pushNow(),
-      async start(nickname) {
+      async start(nickname,countryCode='') {
         s = { code: newSyncCode(), nickname: String(nickname || '').trim().slice(0, 40), consentAt: new Date().toISOString() };
+        rememberCountry(countryCode);
         save();
         await pushNow();
       },
-      async join(code, nickname) {
+      async join(code, nickname,countryCode='') {
         const clean = String(code || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
         const formatted = `${clean.slice(0, 4)}-${clean.slice(4, 8)}-${clean.slice(8, 12)}`;
         if (!CODE_PATTERN.test(formatted)) throw new Error('That code does not look right (12 letters and numbers).');
@@ -1450,6 +1494,10 @@
           if (!result.found) throw new Error('No progress found for that code.');
           mergeProgress(result.data, keys);
           if (!s.nickname && result.nickname) s.nickname = result.nickname;
+          // A country already chosen by this player on another device wins over
+          // an empty join field. An explicit manual choice can update it.
+          if(countryCode || !readJson(keys.country,null))rememberCountry(countryCode);
+          s.countryConsentAt=Date.now();
           save();
           onMerged?.();
           await pushNow();
@@ -1492,9 +1540,24 @@
     // Opening the app: bring in what the other devices saved.
     if (cloud.enabled && s.code) setTimeout(() => syncNow().catch(() => {}), 1500);
     window.addEventListener('pagehide', () => {
-      if (!timer || !s.code || !url) return;
-      try { navigator.sendBeacon?.(url, JSON.stringify({ action: 'save', app, code: s.code, nickname: s.nickname || '', stats: stats(), data: collectProgress(keys) })); } catch {}
+      if (!s.code || !url) return;
+      try {
+        const devices = window.EtherealDevice?.snapshot({id:deviceId(),language:window.EtherealI18n?.language || 'en',previous:readJson(keys.devices,{})}) || {};
+        writeJson(keys.devices, devices);
+        navigator.sendBeacon?.(url, JSON.stringify({ action:'save',app,code:s.code,nickname:s.nickname || '',stats:stats(),device:devices[deviceId()]?.type || 'unknown',deviceInfo:{id:deviceId(),...devices[deviceId()]},data:collectProgress(keys) }));
+      } catch {}
     });
+    let deviceTimer;
+    const noteDevice = () => {
+      if (!s.code) return;
+      clearTimeout(deviceTimer);deviceTimer=setTimeout(()=>{
+        const devices=window.EtherealDevice?.snapshot({id:deviceId(),language:window.EtherealI18n?.language || 'en',previous:readJson(keys.devices,{})});
+        if(devices)writeJson(keys.devices,devices);
+        cloud.changed();
+      },600);
+    };
+    window.addEventListener('resize',noteDevice);
+    window.addEventListener('ethereal-languagechange',noteDevice);
     return cloud;
   }
 
@@ -1559,6 +1622,7 @@
       const minutes = Math.round((Date.now() - time) / 60000);
       return minutes < 1 ? 'just now' : minutes < 60 ? `${minutes} min ago` : new Date(time).toLocaleString();
     };
+    const countryField = () => window.EtherealCountry?.field(cloud.country?.()) || '';
     const paint = view => {
       let body = '';
       if (!cloud.enabled) {
@@ -1568,6 +1632,7 @@
           ${consentHtml(appName)}
           ${view === 'join' ? '<label class="progress-field"><span>Code from your other device</span><input type="text" data-p="code" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" maxlength="16"></label>' : ''}
           <label class="progress-field"><span>${view === 'join' ? 'Your name (leave empty to keep the one from your other device)' : 'Your name or nickname'}</span><input type="text" data-p="nick" maxlength="40" placeholder="e.g. John Appleseed" autocomplete="nickname"></label>
+          ${countryField()}
           <label class="toggle-label progress-agree"><input type="checkbox" data-p="agree"><span>I have read this and agree</span></label>
           <div class="progress-actions-row"><button type="button" class="soft-btn" data-p="back">Back</button><button type="button" class="primary-btn" data-p="${view === 'join' ? 'do-join' : 'do-start'}" disabled>${view === 'join' ? 'Join and save' : 'Save to the cloud'}</button></div>`;
       } else if (cloud.connected) {
@@ -1575,11 +1640,13 @@
           <div class="progress-code"><span>Your code</span><b>${esc(cloud.code)}</b><button type="button" class="soft-btn" data-p="copy">Copy</button></div>
           <p class="path-sub">On another device: <b>Save progress → I have a code</b>, then enter this code. Keep it private: anyone with the code can see and delete this progress.</p>
           <label class="progress-field"><span>Your name</span><input type="text" data-p="nick" maxlength="40" value="${esc(cloud.nickname())}"></label>
+          ${countryField()}
+          ${!cloud.countryEnabled?.()?'<p class="country-disclosure">Save once to apply this country preference on this device.</p>':''}
           <p class="progress-meta">Last saved: ${esc(ago(cloud.lastSync()))}</p>
           <div class="progress-actions-row"><button type="button" class="primary-btn" data-p="sync">Save now</button></div>
           <div class="progress-links"><button type="button" class="text-btn" data-p="stop">Stop saving on this device</button><button type="button" class="text-btn" data-privacy>Privacy Policy</button></div>`;
       } else {
-        body = `<p class="path-sub">Keep your stars, history and daily streak safe, and use them on your phone, tablet and computer.</p>
+        body = `<p class="path-sub">Keep your stars, history and practice days safe, and use them on your phone, tablet and computer.</p>
           <div class="progress-choice"><button type="button" class="choice-btn primary" data-p="consent"><b>Save to the cloud</b><small>Get a code for your other devices</small></button>
           <button type="button" class="choice-btn" data-p="join"><b>I have a code</b><small>Join the progress from another device</small></button></div>
           <div class="progress-links"><button type="button" class="text-btn" data-privacy>Privacy Policy</button></div>`;
@@ -1600,11 +1667,11 @@
       q('back')?.addEventListener('click', () => paint(''));
       q('do-start')?.addEventListener('click', async () => {
         note('Saving…');
-        try { await cloud.start(q('nick').value); toast('Progress saved in the cloud.'); paint(''); } catch (error) { note(error.message); }
+        try { await cloud.start(q('nick').value,q('country')?.value||''); toast('Progress saved in the cloud.'); paint(''); } catch (error) { note(error.message); }
       });
       q('do-join')?.addEventListener('click', async () => {
         note('Looking for your progress…');
-        try { await cloud.join(q('code').value, q('nick').value); toast('Progress joined. This device now saves to the cloud too.'); paint(''); } catch (error) { note(error.message); }
+        try { await cloud.join(q('code').value, q('nick').value,q('country')?.value||''); toast('Progress joined. This device now saves to the cloud too.'); paint(''); } catch (error) { note(error.message); }
       });
       q('sync')?.addEventListener('click', async () => {
         note('Saving…');
@@ -1612,7 +1679,7 @@
           const nick = q('nick').value.trim();
           if (nick.length < 2) { note('Please write your name (2 letters or more).'); return; }
           if (nick !== cloud.nickname()) await cloud.rename(nick);
-          await cloud.sync();
+          await cloud.sync(q('country')?.value);
           paint('');
           toast('Progress saved.');
         } catch (error) { note(error.message); }
@@ -1940,12 +2007,37 @@
 
   const ACHIEVEMENT_PATHS = {"runs": "M8 17V6l12-2v11M8 10l12-2 M8 17a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0 M20 15a2.5 2.5 0 1 1-5 0a2.5 2.5 0 1 1 5 0", "notes": "M12 2v4M12 18v4M2 12h4M18 12h4 M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8 M12 11v2", "perfect": "M12 3l2.3 6.7L21 12l-6.7 2.3L12 21l-2.3-6.7L3 12l6.7-2.3Z", "stars": "M12 2l3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z", "easy": "M5 20C3 10 10 3 20 4c0 9-5 16-15 16Z M5 20l10-10", "medium": "M17 3a9 9 0 1 0 4 14A9 9 0 0 1 17 3Z", "hard": "M13 2c1 6-4 6-2 11 2-1 4-3 4-5 6 7 4 14-3 14S1 15 7 8c0 3 1 4 2 4-1-5 2-7 4-10Z", "minutes": "M12 7v6l4 2 M9 2h6M12 2v3 M12 5a8 8 0 1 0 0 16a8 8 0 0 0 0-16", "streak": "M12 7a5 5 0 1 0 0 10a5 5 0 0 0 0-10 M12 1v3M12 20v3M1 12h3M20 12h3M4 4l2 2M18 18l2 2M4 20l2-2M18 6l2-2", "daily": "M5 5h14v16H5Z M8 2v6M16 2v6M5 10h14 M8 15l3 3 5-5", "drills": "M3 8l9-5 9 5v11l-9 3-9-3Z M3 8l9 4 9-4 M12 12v10M7 10v9M17 10v9", "combo": "M14 2L4 14h7l-1 8 10-13h-7Z", "workouts": "M3 9v6M6 5v14M18 5v14M21 9v6M6 12h12", "flawless": "M3 8l5-5h8l5 5-9 14Z M3 8h18M8 3l4 19 4-19", "fullspeed": "M8 15L4 20l5-1 M9 15l-2-5C11 2 18 3 21 3c0 6-1 10-8 14Z M15 8h.01", "slow": "M3 15h18M5 15v4M18 15v4M7 15C4 7 17 4 18 15 M18 10l3-1v6", "patient": "M12 3v2M6 21l6-9 6 9M2 15l10-3 10 3M8 8a4 4 0 1 0 8 0", "comeback": "M3 21h18M4 17l6-6 4 3 7-10 M15 4h6v6", "encore": "M4 9a8 8 0 0 1 14-3l2 3 M20 3v6h-6 M20 15a8 8 0 0 1-14 3l-2-3 M4 21v-6h6", "explorer": "M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20 M16 8l-2 6-6 2 2-6Z", "night": "M4 5l8 3 8-3v10l-8 7-8-7Z M7 11h2M15 11h2M10 15l2 2 2-2", "early": "M3 17h18M6 14a6 6 0 0 1 12 0 M12 2v4M3 5l3 3M21 5l-3 3M1 12h3M20 12h3 M8 21h8", "weekend": "M3 21L9 4l11 11Z M9 4l3 11 8 0 M16 2l-1 3M22 5l-3 2M19 10l3 1", "mic": "M8 4a4 4 0 0 1 8 0v8a4 4 0 0 1-8 0Z M5 11v2a7 7 0 0 0 14 0v-2M12 20v3M8 23h8", "take": "M3 5h18v16H3Z M7 9h10M8 13h8M7 17h2M15 17h2", "composer": "M3 21l2-7L17 2l5 5-12 12Z M5 14l5 5M15 4l5 5", "trial": "M7 3h10v9a5 5 0 0 1-10 0Z M7 5H3v4a5 5 0 0 0 4 5M17 5h4v4a5 5 0 0 1-4 5M12 17v4M8 22h8"};
   function achievementIcon(id, kind = 'milestone') {
+    if(kind==='badge' && window.EtherealBadges?.art(id))return window.EtherealBadges.art(id);
     const key = ({perfect100:'combo',week:'streak',beginner:'easy',first:'runs',five:'stars',trial0:'trial',trial1:'trial',trial2:'trial'})[id] || id;
     const hue = ({perfect100:272,week:28,beginner:148,first:175,five:44,flawless:194,fullspeed:345,slow:116,patient:260,comeback:155,encore:202,explorer:35,night:245,early:36,weekend:315,mic:185,take:285,composer:338,trial0:27,trial1:205,trial2:46})[id] ?? 175;
     const badge=kind==='badge';
+    if (badge) return stickerBadge(id, key, hue);
     const shell=badge?'<path class="badge-ribbons" d="M11 32L8 50l16-8 16 8-3-18Z"/><circle class="medal-shell" cx="24" cy="22" r="19"/><circle class="medal-frame" cx="24" cy="22" r="15.5"/><path class="badge-shine" d="M10 17A15 15 0 0 1 25 7"/>':'<path class="medal-shell" d="M24 2L43 13v22L24 46 5 35V13Z"/><path class="medal-frame" d="M24 6L39 15v18L24 42 9 33V15Z"/>';
     return `<svg class="achievement-art ${badge?'badge-art':'milestone-art'}" data-glyph-cy="${badge?22:24}" style="--badge-hue:${hue}" viewBox="0 0 48 ${badge?52:48}" aria-hidden="true">${shell}<g class="achievement-glyph" transform="translate(12 ${badge?10:12})" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${ACHIEVEMENT_PATHS[key] || ACHIEVEMENT_PATHS.perfect}"/></g></svg>`;
 
+  }
+
+  let badgeUid = 0;
+  function stickerBadge(id, key, hue) {
+    const uid = `badge-${++badgeUid}`;
+    const jewel = `<path d="M18 23L25 15H39L46 23 32 43Z" fill="url(#${uid}-gem)"/><path d="M18 23H46M25 15L27 23 32 43 37 23 39 15M27 23H37" fill="none" stroke="#f0ffff" stroke-opacity=".75" stroke-width="1.5"/>`;
+    const motifs = {
+      runs: '<path d="M22 37V19L42 15V33" fill="none" stroke="#fff5c8" stroke-width="6" stroke-linejoin="round"/><ellipse cx="18" cy="38" rx="7" ry="5" fill="#ffdf77"/><ellipse cx="38" cy="34" rx="7" ry="5" fill="#fff0b0"/><path d="M22 23L42 19" stroke="#b97923" stroke-width="3"/>',
+      stars: '<path d="M32 9L38 23 53 25 42 35 45 50 32 43 19 50 22 35 11 25 26 23Z" fill="#ffe084" stroke="#a56b22" stroke-width="2"/><path d="M32 9V32L53 25 38 23Z" fill="#fff4c1"/><path d="M32 32L19 50 32 43 45 50Z" fill="#e8a642"/>',
+      streak: '<path d="M33 10C40 23 26 22 34 31c4-2 7-7 6-11 17 16 8 31-8 31S9 36 22 23c-1 8 2 9 5 10-4-11 3-15 6-23Z" fill="#ff9d40" stroke="#9f4729" stroke-width="2"/><path d="M32 29c9 9 10 17 1 20S20 39 32 29Z" fill="#ffed8b"/>',
+      trial: '<path d="M21 15H43V32c0 15-22 15-22 0Z" fill="#ffe095" stroke="#a66b24" stroke-width="2"/><path d="M21 19H13v9c0 7 5 9 10 9M43 19h8v9c0 7-5 9-10 9" fill="none" stroke="#edb951" stroke-width="5"/><path d="M32 43v9M22 53H42" stroke="#ffdd86" stroke-width="5"/><path d="M32 20l3 6 6 1-5 4 1 7-5-3-5 3 1-7-5-4 6-1Z" fill="#fff9d4"/>',
+      fullspeed: '<path d="M20 36C20 19 35 10 48 12c0 15-6 28-22 31Z" fill="#fff2cf" stroke="#9b4b65" stroke-width="2"/><circle cx="36" cy="25" r="6" fill="#5ecddc" stroke="#25667b" stroke-width="2"/><path d="M20 31L12 42l12-2M29 43l-4 11 11-12" fill="#f57986"/><path d="M19 42l-8 12 13-8" fill="#ffda72"/>',
+      easy: '<path d="M16 47C6 31 24 15 47 15c4 23-10 39-31 32Z" fill="#83e1a8" stroke="#276c62" stroke-width="2"/><path d="M15 48L39 24M25 38l-1-13M31 31l11 1" stroke="#eaffbd" stroke-width="3" fill="none"/>',
+      slow: '<ellipse cx="30" cy="33" rx="17" ry="13" fill="#9ed58b" stroke="#3b7266" stroke-width="2"/><path d="M16 30l13-9 14 10-6 11H23Z" fill="#4ca18f"/><path d="M29 21v21M16 30h27" stroke="#d0f2a4" stroke-width="2"/><circle cx="49" cy="34" r="7" fill="#c5e5a2"/><circle cx="51" cy="32" r="1.8" fill="#263e53"/><path d="M20 42l-3 7M36 43l4 6" stroke="#bde494" stroke-width="5"/>',
+      mic: '<rect x="24" y="11" width="16" height="28" rx="8" fill="#f6d791" stroke="#8b7150" stroke-width="2"/><path d="M19 29v5a13 13 0 0 0 26 0v-5M32 47v8M24 56h16" fill="none" stroke="#9cecec" stroke-width="4"/><path d="M28 18h8M28 24h8" stroke="#b0884d" stroke-width="2"/>',
+      early: '<circle cx="32" cy="30" r="14" fill="#ffe89e" stroke="#c57a2d" stroke-width="2"/><path d="M32 8v5M32 47v5M10 30h5M49 30h5M16 14l4 4M45 44l4 4M16 46l4-4M45 17l4-4" stroke="#ffc66f" stroke-width="4" stroke-linecap="round"/><path d="M25 30q7 9 14 0" fill="none" stroke="#b67d42" stroke-width="2"/>',
+      night: '<path d="M18 19l14 5 14-5v20L32 49 18 39Z" fill="#b9b2f4" stroke="#4a5389" stroke-width="2"/><circle cx="25" cy="31" r="7" fill="#fff0c4"/><circle cx="39" cy="31" r="7" fill="#fff0c4"/><circle cx="25" cy="31" r="3" fill="#314c70"/><circle cx="39" cy="31" r="3" fill="#314c70"/><path d="M28 38h8l-4 6Z" fill="#ffbf77"/>',
+      composer: '<path d="M17 41L39 13l11 9-23 27-13 5Z" fill="#ffcf86" stroke="#934f61" stroke-width="2"/><path d="M39 13l11 9-5 6-11-9Z" fill="#e68db0"/><path d="M17 41l10 8-13 5Z" fill="#fff0c5"/><path d="M17 41l-3 13 6-3Z" fill="#46405e"/>',
+      take: '<rect x="14" y="16" width="36" height="32" rx="6" fill="#b6c9f6" stroke="#54649b" stroke-width="2"/><rect x="20" y="21" width="24" height="12" rx="4" fill="#4a527f"/><circle cx="25" cy="27" r="3" fill="#f5e6c2"/><circle cx="39" cy="27" r="3" fill="#f5e6c2"/><path d="M23 39h18l3 9H20Z" fill="#f1daf7"/>',
+      explorer: '<circle cx="32" cy="31" r="20" fill="#f0d28c" stroke="#a2753d" stroke-width="2"/><circle cx="32" cy="31" r="15" fill="#4e768d"/><path d="M43 20L36 35 21 42 28 27Z" fill="#f6f1d7"/><path d="M43 20L36 35 28 27Z" fill="#f0888a"/><circle cx="32" cy="31" r="3" fill="#dfb866"/>'
+    };
+    const motif = motifs[key] || (key === 'combo' ? motifs.streak : key === 'patient' ? motifs.easy : key === 'weekend' ? motifs.early : key === 'encore' ? motifs.runs : key === 'comeback' ? motifs.fullspeed : jewel);
+    return `<svg class="achievement-art badge-art sticker-art" style="--badge-hue:${hue}" viewBox="0 0 64 72" aria-hidden="true"><defs><linearGradient id="${uid}-base" x2=".7" y2="1"><stop stop-color="hsl(${hue} 75% 65%)"/><stop offset="1" stop-color="hsl(${hue} 48% 25%)"/></linearGradient><linearGradient id="${uid}-gem" x2=".8" y2="1"><stop stop-color="#ecffff"/><stop offset=".4" stop-color="hsl(${hue} 80% 65%)"/><stop offset="1" stop-color="hsl(${hue} 70% 34%)"/></linearGradient></defs><path d="M32 4L49 10 58 24 55 46 44 56 46 67 32 62 18 67 20 56 9 46 6 24 15 10Z" fill="#fff6e3" stroke="#111e36" stroke-width="3" stroke-linejoin="round"/><path d="M17 44L14 63 32 56 50 63 47 44" fill="#d1a653" stroke="#966631" stroke-width="2"/><path d="M32 8L47 14 54 26 51 44 40 53H24L13 44 10 26 17 14Z" fill="url(#${uid}-base)" stroke="#efd69a" stroke-width="2"/>${motif}<path d="M12 19l2 5 5 2-5 2-2 5-2-5-5-2 5-2Z" fill="#e8ffff"/><path d="M49 41l1.8 4 4.2 2-4.2 1.5-1.8 4-1.7-4-4.3-1.5 4.3-2Z" fill="#fff6d1"/></svg>`;
   }
 
   function centreAchievementIcons(root) {
@@ -1966,7 +2058,7 @@
     { id: 'medium', icon: achievementIcon('medium'), name: 'Medium songs cleared', tiers: [1, 3, 5, 10, 20] },
     { id: 'hard', icon: achievementIcon('hard'), name: 'Hard songs cleared', tiers: [1, 2, 4, 8, 15] },
     { id: 'minutes', icon: achievementIcon('minutes'), name: 'Practice time', tiers: [30, 120, 600, 3000, 6000], unit: 'min' },
-    { id: 'streak', icon: achievementIcon('streak'), name: 'Day streak', tiers: [3, 7, 30, 100, 365], unit: 'days' },
+    { id: 'streak', icon: achievementIcon('streak'), name: 'Practice days', tiers: [3, 7, 30, 100, 365], unit: 'days' },
     { id: 'daily', icon: achievementIcon('daily'), name: 'Daily challenges', tiers: [5, 25, 100, 250, 500] },
     { id: 'drills', icon: achievementIcon('drills'), name: 'Practice studio', tiers: [1, 10, 50, 100, 250] },
     { id: 'combo', icon: achievementIcon('combo'), name: 'Best combo', tiers: [25, 50, 100, 200, 500] },
@@ -1976,9 +2068,15 @@
 
   const BADGES = [
     { id: 'perfect100', icon: achievementIcon('perfect100','badge'), name: 'Perfect century', text: 'Play 100 Perfect notes in a row in one run.', xp: 250 },
-    { id: 'week', icon: achievementIcon('week','badge'), name: 'Seven-day flame', text: 'Reach a 7-day practice streak.', xp: 200 },
+    { id: 'week', icon: achievementIcon('week','badge'), name: 'Seven lights', text: 'Reach your goal on 7 days. Breaks are welcome.', xp: 200 },
     { id: 'beginner', icon: achievementIcon('beginner','badge'), name: 'First Light graduate', text: 'Complete every stop and the final trial of path 1.', xp: 250 },
     { id: 'first', icon: achievementIcon('first','badge'), name: 'First notes', text: 'Finish your first song.', xp: 50 },
+    { id: 'star1', icon: achievementIcon('star1','badge'), name: 'First star', text: 'Earn your first star on a song.', xp: 25 },
+    { id: 'star2', icon: achievementIcon('star2','badge'), name: 'Second star', text: 'Earn at least 2 stars on a song.', xp: 35 },
+    { id: 'star3', icon: achievementIcon('star3','badge'), name: 'Third star', text: 'Earn at least 3 stars on a song.', xp: 50 },
+    { id: 'star4', icon: achievementIcon('star4','badge'), name: 'Fourth star', text: 'Earn at least 4 stars on a song.', xp: 75 },
+    { id: 'constellation', icon: achievementIcon('constellation','badge'), name: 'Your constellation', text: 'Complete your first weekly constellation. Take as many days as you need.', xp: 200 },
+    { id: 'flow', icon: achievementIcon('flow','badge'), name: 'Cosmic flow', text: 'Build a 50-note combo in one run.', xp: 150 },
     { id: 'five', icon: achievementIcon('five','badge'), name: 'Five stars', text: 'Earn ★★★★★ on a song.', xp: 150 },
     { id: 'flawless', icon: achievementIcon('flawless','badge'), name: 'Flawless', text: 'Finish a song with no missed or wrong notes.', xp: 200 },
     { id: 'fullspeed', icon: achievementIcon('fullspeed','badge'), name: 'Full speed', text: 'Earn ★★★★ at 1× or faster.', xp: 150 },
@@ -1988,7 +2086,6 @@
     { id: 'encore', icon: achievementIcon('encore','badge'), name: 'Encore', text: 'Play the same song 3 times in a row.', xp: 50 },
     { id: 'explorer', icon: achievementIcon('explorer','badge'), name: 'Explorer', text: 'Play 5 different songs in one day.', xp: 100 },
     { id: 'night', icon: achievementIcon('night','badge'), name: 'Night owl', text: 'Play between 10 pm and 4 am.', xp: 75 },
-    { id: 'early', icon: achievementIcon('early','badge'), name: 'Early bird', text: 'Play between 5 and 7 am.', xp: 75 },
     { id: 'weekend', icon: achievementIcon('weekend','badge'), name: 'Weekend warrior', text: 'Play on a Saturday and the Sunday after.', xp: 100 },
     { id: 'mic', icon: achievementIcon('mic','badge'), name: 'Live on stage', text: 'Finish a song with the microphone on.', xp: 100 },
     { id: 'take', icon: achievementIcon('take','badge'), name: 'Recording artist', text: 'Record a take with Rec.', xp: 75 },
@@ -2028,6 +2125,7 @@
   }
 
   function createGame({ app, keys, best, journey, titleOf = id => id, levelOf = () => 'easy', drillId = '', practice = null, songInfo = () => null }) {
+    const rewardCatalog = kind => (COSMETICS.catalog[kind] || []).filter(item => app !== 'ethereal-drum' || item.tongue !== false);
     const rewardKinds = REWARD_KINDS.filter(kind => kind !== 'shape' || app === 'ethereal-drum');
     const key = `${app}-game-v1`;
     const blank = () => ({ xp: 0, c: {}, badges: {}, tiers: {}, owned: [], skin: '', nebula: '', rim: '', accent: '', pattern: '', day: null, daily: null, workout: null, last: null });
@@ -2035,6 +2133,7 @@
     const save = () => { data.updatedAt = Date.now(); return writeJson(key, data); };
     let run = null;
     let workoutIndex = null;
+    let lastSummary = null;
     const listeners = new Set();
     const tell = () => listeners.forEach(fn => { try { if (fn() === false) listeners.delete(fn); } catch {} });
     const combo = { mult: 1, chips: [], pop: null };
@@ -2060,11 +2159,7 @@
       const log = readJson(keys.practice, null) || {};
       const goal = Number(log.goal) || 10;
       const total = day => Object.values((log.days || {})[day] || {}).reduce((sum, value) => sum + (Number(value) || 0), 0);
-      let streak = 0;
-      const date = new Date();
-      if (total(dayStamp(date)) < goal * 60) date.setDate(date.getDate() - 1);
-      while (total(dayStamp(date)) >= goal * 60) { streak += 1; date.setDate(date.getDate() - 1); }
-      return streak;
+      return Object.keys(log.days || {}).filter(day => total(day) >= goal * 60).length;
     }
     function bestList() {
       const store = readJson(keys.best, {}) || {};
@@ -2096,6 +2191,7 @@
         case 'combo': return c('bestCombo');
         case 'workouts': return c('workouts');
         case 'level': return levelInfo(data.xp).level;
+        case 'weekly': return Object.keys(data.weeklyClaims || {}).length;
         default: return 0;
       }
     }
@@ -2118,7 +2214,7 @@
         const done = bossBeaten(goal);
         return { done, text: `Beat the ${name} final trial`, value: done ? 1 : 0, goal: 1 };
       }
-      const map = { level: ['level', n => `Reach level ${n}`], streak: ['streak', n => `Keep a ${n}-day streak`], daily: ['daily', n => `Complete ${n} daily challenges`],
+      const map = { level: ['level', n => `Reach level ${n}`], streak: ['streak', n => `Collect ${n} practice days`], weekly: ['weekly', n => `Complete ${n} weekly constellations`], daily: ['daily', n => `Complete ${n} daily challenges`],
         runs: ['runs', n => `Finish ${fmt(n)} songs`], notes: ['notes', n => `Hit ${fmt(n)} notes`], minutes: ['minutes', n => `Practise for ${fmt(n)} minutes`], perfect: ['perfect', n => `Hit ${fmt(n)} Perfect notes`], stars: ['stars', n => `Collect ${n} stars`], workouts: ['workouts', n => `Finish ${n} of Today's workouts`], combo: ['combo', n => `Reach a ${n}-note combo`] };
       const [source, text] = map[kind];
       const now = value(source);
@@ -2154,6 +2250,33 @@
         const now = Math.min(def.goal, Number(def.v(d, game)) || 0);
         return { ...def, now, done: Boolean(set.done[id]) || now >= def.goal };
       }).filter(Boolean);
+    }
+
+    function weekStamp() { const date = new Date(); date.setDate(date.getDate() - (date.getDay() + 6) % 7); return dayStamp(date); }
+    function weeklyPlan() {
+      const stamp = weekStamp();
+      if (!data.weekly || (data.weekly.claimed && data.weekly.stamp !== stamp)) {
+        data.weekly = { stamp, runs: 0, notes: 0, songs: [], days: [], lessons: 0, claimed: false }; save();
+      }
+      return data.weekly;
+    }
+    function weeklyStatus() {
+      const w = weeklyPlan();
+      const tasks = [
+        { id: 'runs', text: 'Finish 3 songs', goal: 3, now: w.runs || 0 },
+        { id: 'notes', text: 'Play 150 notes', goal: 150, now: w.notes || 0 },
+        { id: 'songs', text: 'Explore 2 different songs', goal: 2, now: w.songs.length },
+        { id: 'lessons', text: 'Complete a Practice studio step', goal: 1, now: w.lessons || 0 },
+        { id: 'days', text: 'Play on 2 days, at your own pace', goal: 2, now: w.days.length }
+      ].map(t => ({ ...t, now: Math.min(t.now, t.goal), done: t.now >= t.goal }));
+      return { ...w, tasks, completed: tasks.filter(t => t.done).length, prize: 'Starlight opal' };
+    }
+    function regularityBonus() {
+      const days = new Set(data.activeDays || []), log = readJson(keys.practice, {}) || {};
+      Object.entries(log.days || {}).forEach(([day, devices]) => { if (Object.values(devices || {}).some(n => Number(n) > 0)) days.add(day); });
+      let count = 0; const date = new Date();
+      for (let i = 0; i < 7; i++) { if (days.has(dayStamp(date))) count++; date.setDate(date.getDate() - 1); }
+      return Math.min(30, count * 5);
     }
 
     function workoutPlan() {
@@ -2203,6 +2326,16 @@
 
     // Badges, milestone tiers, daily challenges, the workout and rewards after any change.
     function check(news) {
+      const w = weeklyPlan(), status = weeklyStatus();
+      data.weeklyClaims = data.weeklyClaims || {};
+      if (!w.claimed && status.completed === status.tasks.length) {
+        if (!data.weeklyClaims[w.stamp]) { data.weeklyClaims[w.stamp] = Date.now(); addXp(500, [], ''); news.push({ kind: 'weekly', text: 'Weekly constellation complete', xp: 500 }); }
+        w.claimed = true;
+      }
+      if(Object.keys(data.weeklyClaims).length)award('constellation',news);
+      if(c('bestCombo')>=50)award('flow',news);
+      const bestSongStars=Math.max(0,...bestList().filter(([id])=>id!==drillId).map(([,b])=>bestStars(b)));
+      for(let n=1;n<=4;n++)if(bestSongStars>=n)award('star'+n,news);
       if (dayStreak() >= 7) award('week', news);
       const firstPath = journey?.nodes.filter(node => node.pathIndex === 0) || [];
       if (firstPath.length && firstPath.every(node => journey.starsOf(node) >= journey.need)) award('beginner', news);
@@ -2232,7 +2365,7 @@
         }
         if (reached > had) data.tiers[m.id] = reached;
       });
-      rewardKinds.flatMap(kind => COSMETICS.catalog[kind].map(item => [kind, item])).forEach(([kind, item]) => {
+      rewardKinds.flatMap(kind => rewardCatalog(kind).map(item => [kind, item])).forEach(([kind, item]) => {
         const id = `${kind}:${item.id}`;
         if (!item.id || !item.unlock || data.owned.includes(id) || !requirement(item.unlock).done) return;
         data.owned.push(id);
@@ -2246,7 +2379,7 @@
       if (!badge) return;
       data.badges[id] = Date.now();
       addXp(badge.xp, [], '');
-      news.push({ kind: 'badge', icon: badge.icon, text: `Badge: ${badge.name}`, xp: badge.xp });
+      news.push({ kind: 'badge', badgeId:id, icon: badge.icon, text: `Badge: ${badge.name}`, xp: badge.xp });
     }
 
     const game = {
@@ -2254,7 +2387,8 @@
       levelInfo: () => levelInfo(data.xp),
       todayMinutes: () => practiceTotals().today,
       onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
-      streak: () => ({ days: dayStreak(), ...(practice?.freezeStatus() || { tokens: 0, protected: false }) }),
+      streak: () => ({ days: Math.max(c('dayStreak'), dayStreak()), bonus: regularityBonus() }),
+      weekly: () => weeklyStatus(),
       beginWorkout(step) { workoutIndex = workoutPlan().steps.findIndex(item => item === step); },
       sectionPass({ id, from, to, total, hits }) {
         const plan = workoutPlan();
@@ -2262,14 +2396,14 @@
         if (!step?.section || plan.done[workoutIndex] || step.id !== id || Math.abs(step.section.from - from) > .05 || Math.abs(step.section.to - to) > .05 || total < 1 || hits / total < .75) return [];
         plan.done[workoutIndex] = true;
         const news = [{ icon: '✓', text: 'Workout step complete!' }];
-        check(news); save(); tell();
+        check(news);data.pendingNews=[...(data.pendingNews||[]),...news].slice(-40); save(); tell();
         return news;
       },
       get skin() { return data.skin || ''; },
       get nebula() { return data.nebula || ''; },
 
       /* Combo during a run. */
-      runReset() { run = { points: 0, notes: 0, perfect: 0, maxCombo: 0, perfectCombo: 0, bestPerfect: 0, timings: [], started: false, invalid: false, minSpeed: Infinity }; game.combo(0); },
+      runReset() { lastSummary=null; run = { points: 0, notes: 0, perfect: 0, maxCombo: 0, perfectCombo: 0, bestPerfect: 0, timings: [], started: false, invalid: false, minSpeed: Infinity }; game.combo(0); },
       startRun({ id, speed, from = 0, mode }) {
         if (!run) game.runReset();
         if (!run.started) { run.started = true; run.id = id; run.mode = mode; if (from > .05) run.invalid = true; }
@@ -2327,7 +2461,8 @@
         if (!game.canRecordRun() || !run.notes || !['practice', 'wait'].includes(mode)) { run = null; game.combo(0); return null; }
         speed = game.runSpeed(speed);
         if (weakBar && !isNaN(weakBar.from) && weakBar.to > weakBar.from) data.weak = { id, ...weakBar };
-        const news = [];
+        const news = Array.isArray(data.pendingNews)?data.pendingNews.slice(-40):[];
+        data.pendingNews=[];
         const before = levelInfo(data.xp);
         const isDrill = id === drillId;
         const stars = starsFor(accuracy, speed);
@@ -2341,7 +2476,14 @@
         const points = Math.round(run.points);
         const newStars = Math.max(0, stars - prevStars);
         const runXp = points + stars * 10 + newStars * 20;
-        addXp(runXp, [], '');
+        data.activeDays = [...new Set([...(data.activeDays || []), dayStamp()])];
+        const bonusPercent = regularityBonus(), regularityXp = Math.round(runXp * bonusPercent / 100);
+        addXp(runXp + regularityXp, [], '');
+        if (regularityXp) news.push({ kind: 'regularity', text: `Practice rhythm bonus: +${bonusPercent}%`, xp: regularityXp });
+        const week = weeklyPlan();
+        week.notes = (week.notes || 0) + run.notes;
+        week.days = [...new Set([...week.days, dayStamp()])];
+        if (!isDrill) { week.runs = (week.runs || 0) + 1; week.songs = [...new Set([...week.songs, id])]; }
         if (!isDrill) bump('runs');
         bump('notes', run.notes);
         bump('perfect', run.perfect);
@@ -2383,6 +2525,7 @@
         // Badges.
         if (!isDrill && run.notes) award('first', news);
         if (run.bestPerfect >= 100) award('perfect100', news);
+        if(!isDrill)for(let n=1;n<=4;n++)if(stars>=n)award('star'+n,news);
         if (stars >= 5) award('five', news);
         if (clean && mode === 'practice') award('flawless', news);
         if (speed >= 0.999 && stars >= 4) award('fullspeed', news);
@@ -2393,7 +2536,6 @@
         if (data.last.n >= 3) award('encore', news);
         if (d.songs.length >= 5) award('explorer', news);
         if (hour >= 22 || hour < 4) award('night', news);
-        if (hour >= 5 && hour < 7) award('early', news);
         if (now.getDay() === 6) data.c.saturday = dayStamp();
         if (now.getDay() === 0) {
           const saturday = new Date(now);
@@ -2405,26 +2547,38 @@
         const after = levelInfo(data.xp);
         const gained = data.xp - before.xp;
         const timing = run.timings.length ? { early: run.timings.filter(n => n < -.04).length, late: run.timings.filter(n => n > .04).length, count: run.timings.length, mean: run.timings.reduce((a, b) => a + b, 0) / run.timings.length } : null;
-        const summary = { timing, gained, runXp, points, maxCombo: run.maxCombo, before, after, levelUp: after.level > before.level, news };
+        const personalBest = prev ? { before: scoreFor(prev.accuracy, prev.speed), current: scoreFor(accuracy, speed), accuracy, speed, previousAccuracy: prev.accuracy, previousSpeed: prev.speed } : null;
+        const summary = { timing, personalBest, regularityXp, gained, runXp, points, maxCombo: run.maxCombo, before, after, levelUp: after.level > before.level, news };
+        lastSummary=summary;
         run = null;
         save();
         tell();
         return summary;
       },
 
+      claimResultNews() {
+        if(!lastSummary || run?.started || !data.pendingNews?.length)return null;
+        lastSummary.news.push(...data.pendingNews);data.pendingNews=[];
+        lastSummary.after=levelInfo(data.xp);lastSummary.gained=data.xp-lastSummary.before.xp;
+        lastSummary.levelUp=lastSummary.after.level>lastSummary.before.level;
+        save();return lastSummary;
+      },
+
       event(name) {
         const news = [];
         if (name === 'take') award('take', news);
         if (name === 'composer') award('composer', news);
+        if (name === 'lesson') { const w = weeklyPlan(); w.lessons = (w.lessons || 0) + 1; check(news); data.pendingNews=[...(data.pendingNews||[]),...news].slice(-40); save(); tell(); return news; }
         if (!news.length) return news;
         check(news);
+        data.pendingNews=[...(data.pendingNews||[]),...news].slice(-40);
         save();
         tell();
         return news;
       },
 
       // Time-based challenges (minutes, streaks) are checked when the hub opens too.
-      refresh() { const news = []; check(news); if (news.length) { save(); tell(); } return news; },
+      refresh() { const news = []; check(news); if (news.length) { data.pendingNews=[...(data.pendingNews||[]),...news].slice(-40);save(); tell(); } return news; },
 
       daily: () => dailyList(),
       canSwap: () => !dailySet().swapped,
@@ -2451,12 +2605,14 @@
       badges: () => BADGES.map(b => ({ ...b, at: data.badges[b.id] || 0 })),
       look(skin = data.skin) {
         const preset = COSMETICS.skinOf(skin);
-        return Object.fromEntries(rewardKinds.map(kind => [kind, kind === 'skin' ? skin : ['accent','pattern'].includes(kind) && data[kind] === 'off' ? '' : data[kind] || (data.accessoryOverrides?.[kind] ? '' : preset[kind]) || '']));
+        const result = Object.fromEntries(rewardKinds.map(kind => [kind, kind === 'skin' ? skin : ['accent','pattern'].includes(kind) && data[kind] === 'off' ? '' : data[kind] || (data.accessoryOverrides?.[kind] ? '' : preset[kind]) || '']));
+        if (app === 'ethereal-drum' && result.pattern === 'constellation') result.pattern = '';
+        return result;
       },
       lookFor(kind,id) { return kind === 'skin' ? game.look(id) : {...game.look(),[kind]:id}; },
       isTongue: app === 'ethereal-drum',
       rewards(kind) {
-        return (COSMETICS.catalog[kind] || []).map(item => {
+        return rewardCatalog(kind).map(item => {
           let req = requirement(item.unlock);
           const included = ['rim','accent','pattern'].includes(kind) && SKINS.find(skin => skin[kind] === item.id && (data.owned.includes(`skin:${skin.id}`) || requirement(skin.unlock).done));
           if(included && !req.done) req = {done:true,value:1,goal:1,text:`Included with your ${included.name} finish`};
@@ -2465,7 +2621,7 @@
         });
       },
       ownedCount() { return rewardKinds.flatMap(kind => game.rewards(kind).filter(item => (item.id || kind === 'skin' || kind === 'nebula') && item.owned)).length; },
-      rewardCount() { return rewardKinds.flatMap(kind => COSMETICS.catalog[kind].filter(item => item.id || kind === 'skin' || kind === 'nebula')).length; },
+      rewardCount() { return rewardKinds.flatMap(kind => rewardCatalog(kind).filter(item => item.id || kind === 'skin' || kind === 'nebula')).length; },
       equip(kind, id) {
         const item = game.rewards(kind).find(entry => entry.id === id);
         if (!item || !item.owned) return false;
@@ -2494,6 +2650,7 @@
       reload() { data = Object.assign(blank(), readJson(key, null) || {}); game.applyLook(); tell(); }
     };
     if (typeof window !== 'undefined') window.addEventListener('ethereal:take', () => game.event('take'));
+    if (typeof window !== 'undefined') window.addEventListener('ethereal:lesson', () => game.event('lesson'));
     return game;
   }
 
@@ -2545,14 +2702,14 @@
     game.refresh();
     const paint = () => {
       const info = game.levelInfo();
-      const tabs = [['today', 'Today'], ['milestones', 'Milestones'], ['badges', 'Badges'], ['rewards', 'Rewards']];
+      const tabs = [['today', 'Today'], ['weekly', 'Constellation'], ['milestones', 'Milestones'], ['badges', 'Badges'], ['rewards', 'Rewards']];
       let body = '';
       if (tab === 'today') {
         const daily = game.daily();
         const left = (() => { const now = new Date(); const end = new Date(now); end.setHours(24, 0, 0, 0); const m = Math.round((end - now) / 60000); return `${Math.floor(m / 60)} h ${m % 60} min`; })();
         const plan = game.workout();
         const streak = game.streak();
-        body = `<div class="streak-freeze"><b>🔆 ${streak.days}-day streak</b><span>❄ ${streak.tokens}/1 freeze ready${streak.protected ? ' · yesterday protected' : ''}</span><small>One missed day is protected automatically. Refill after 7 daily goals.</small></div><section class="hub-section"><div class="hub-section-head"><h3>Daily challenges</h3><small>New ones in ${left}</small></div>
+        body = `<div class="practice-positive"><b>${streak.days} practice days collected</b><span>Practice rhythm bonus: +${streak.bonus}% XP</span><small>Every visit counts. Breaks never reset your progress. Up to 30% extra XP for playing regularly.</small></div><section class="hub-section"><div class="hub-section-head"><h3>Daily challenges</h3><small>New ones in ${left}</small></div>
           <ul class="daily-list">${daily.map(item => `<li class="daily-item${item.done ? ' done' : ''}">
             <span class="daily-check" aria-hidden="true">${item.done ? '✓' : ''}</span>
             <span class="daily-copy"><b>${esc(item.text)}</b><i class="xp-bar small"><i style="width:${Math.round((item.now / item.goal) * 100)}%"></i></i><small>${fmt(item.now)} / ${fmt(item.goal)} · +${item.xp} XP</small></span>
@@ -2560,13 +2717,17 @@
           </li>`).join('')}</ul></section>
           <section class="hub-section"><div class="hub-section-head"><h3>Today's workout</h3><small>+${WORKOUT_BONUS} XP for all three</small></div>
           <ol class="workout-list">${plan.steps.map((step, index) => `<li class="workout-step${plan.done[index] ? ' done' : ''}"><span class="workout-num">${plan.done[index] ? '✓' : index + 1}</span><span class="workout-copy"><b>${esc(step.title)}</b><small>${esc(step.sub || '')}</small></span>${plan.done[index] ? '' : `<button type="button" class="workout-go" data-step="${index}">Go</button>`}</li>`).join('')}</ol></section>`;
+      } else if (tab === 'weekly') {
+        const week = game.weekly();
+        const positions = [[40,100],[120,35],[225,80],[320,28],[395,105]];
+        body = `<section class="weekly-constellation"><small>YOUR WEEKLY CONSTELLATION</small><h3>Five lights, one special reward</h3><p>Take your time. An unfinished constellation stays with you, even next week.</p><svg viewBox="0 0 440 145" role="img" aria-label="Weekly constellation progress"><path d="M40 100L120 35L225 80L320 28L395 105" fill="none" stroke="#6e8aa9" stroke-width="2"/>${week.tasks.map((t,i) => `<g transform="translate(${positions[i][0]} ${positions[i][1]})" class="weekly-star${t.done ? ' lit' : ''}"><circle r="23" fill="${t.done ? '#163e51' : '#101d32'}" stroke="${t.done ? '#65e8eb' : '#71849d'}"/><path d="M0-15L4-5L15-4L7 4L9 15L0 10L-9 15L-7 4L-15-4L-4-5Z" fill="${t.done ? '#ffe297' : '#435976'}"/></g>`).join('')}</svg><ol class="weekly-tasks">${week.tasks.map(t => `<li class="${t.done ? 'done' : ''}"><span>${t.done ? '✓' : '○'}</span><b>${esc(t.text)}</b><em>${t.now} / ${t.goal}</em></li>`).join('')}</ol><div class="weekly-prize">${COSMETICS.preview({skin:'starlight-opal'}, {tongue:game.isTongue})}<div><small>SPECIAL REWARD</small><h3>Starlight opal</h3><p>${week.claimed ? 'Yours! Find it in the drum atelier.' : `${week.completed} / 5 lights · a luminous opal finish and +500 XP`}</p><span>New constellations arrive weekly. Your prizes stay forever.</span></div></div></section>`;
       } else if (tab === 'milestones') {
         body = `<ul class="milestone-list">${game.milestones().map(m => `<li class="milestone"><span class="ms-icon" aria-hidden="true">${m.icon}</span><span class="ms-copy"><b>${esc(m.name)} <em class="ms-tier">${m.tier ? roman(m.tier) : ''}</em></b>
           <span class="ms-pips">${m.tiers.map((goal, i) => `<i class="${i < m.tier ? 'on' : ''}" title="${fmt(goal)}"></i>`).join('')}</span>
           ${m.next ? `<i class="xp-bar small"><i style="width:${Math.round(m.progress * 100)}%"></i></i><small>${fmt(m.now)} / ${fmt(m.next)}${m.unit ? ` ${m.unit}` : ''} · next +${m.xp} XP</small>` : '<small class="ms-max">All tiers done</small>'}</span></li>`).join('')}</ul>`;
       } else if (tab === 'badges') {
         const list = game.badges();
-        body = `<p class="hub-note">${list.filter(b => b.at).length} of ${list.length} badges</p><ul class="badge-grid">${list.map(b => `<li class="badge${b.at ? ' got' : ''}"><span class="badge-icon" aria-hidden="true">${b.icon}</span><b>${esc(b.name)}</b><small>${esc(b.text)}</small><em>+${b.xp} XP</em></li>`).join('')}</ul>`;
+        body = `<p class="hub-note">${list.filter(b => b.at).length} of ${list.length} badges</p><ul class="badge-grid">${list.map(b => `<li class="badge${b.at ? ' got' : ''}"><button type="button" class="badge-open" data-badge="${esc(b.id)}"><span class="badge-icon" aria-hidden="true">${b.icon}${b.at ? '' : `<i class="badge-padlock">${ICONS.lock}</i>`}</span><b>${esc(b.name)}</b><small>${esc(b.text)}</small><em>+${b.xp} XP</em><span class="badge-read-more">View badge</span></button></li>`).join('')}</ul>`;
       } else {
         const kinds = [['skin', 'Finishes'], ['rim', 'Rims & rattan'], ['accent', 'Note centres'], ['pattern', 'Engravings'], ['nebula', 'Nebulas'], ...(game.isTongue ? [['shape','Tongue shapes']] : [])];
         const list = game.rewards(rewardKind);
@@ -2590,6 +2751,7 @@
         <div class="hub-body${tab === 'rewards' ? ' atelier-body' : ''}">${body}</div>
       </div>`;
       requestAnimationFrame(() => centreAchievementIcons(d));
+      window.EtherealBadges?.bind(d,game);
       d.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => { tab = button.dataset.tab; paint(); }));
       d.querySelector('[role=tablist]').addEventListener('keydown', event => {
         const index = tabs.findIndex(([id]) => id === tab);
@@ -2613,22 +2775,44 @@
   function gameResultHtml(summary) {
     if (!summary) return '';
     const info = summary.after;
-    const news = summary.news.map(item => `<li class="gr-${item.kind}"><span aria-hidden="true">${item.icon || '✨'}</span><b>${esc(item.text)}</b>${item.xp ? `<em>+${item.xp} XP</em>` : ''}${item.reward ? `<button type="button" class="reward-use" data-use="${item.reward.kind}:${esc(item.reward.id)}">Use it</button>` : ''}</li>`).join('');
+    const pb = summary.personalBest, delta = pb ? Math.round((pb.current - pb.before) * 10) / 10 : 0;
+    const comparison = pb ? `<section class="personal-best"><b>${delta > 0 ? 'A new personal best!' : 'Your progress, your pace'}</b><div><span>Previous best<strong>${Math.round(pb.before)}%</strong><small>${Math.round(pb.previousAccuracy)}% accuracy · ${speedLabel(pb.previousSpeed)}</small></span><span>This run<strong>${Math.round(pb.current)}%</strong><small>${Math.round(pb.accuracy)}% accuracy · ${speedLabel(pb.speed)}</small></span></div><p>${delta > 0 ? `+${delta} points above your record` : delta === 0 ? 'You matched your best score.' : 'Your best is safe. Every practice builds the movement.'}</p></section>` : '<p class="personal-first">Your first benchmark is saved. Next time you can compare your progress.</p>';
+    const earnedTitle=item=>{
+      if(item.reward){const [category,...name]=item.text.split(': ');return `<span>${esc(category)}</span>: <span>${esc(name.join(': '))}</span>`;}
+      if(item.kind==='tier'){const m=MILESTONES.find(m=>item.text.startsWith(m.name+' '));if(m){const rest=item.text.slice(m.name.length).replace(/ (min|days)$/,'');return `<span>${esc(m.name)}</span><span translate="no">${esc(rest)}</span>${m.unit?` <span>${esc(m.unit)}</span>`:''}`;}}
+      return esc(item.text);
+    };
+    const earned=summary.news.filter(item=>['badge','tier','reward','daily','workout','weekly','boss'].includes(item.kind));
+    const gallery=earned.length?`<section class="run-unlocks" aria-label="Your new rewards"><h3>Your new rewards</h3><p>New achievements, new discoveries. They are yours to keep.</p><ul>${earned.map((item,index)=>{const reward=item.reward,visual=['daily','weekly','boss','workout'].includes(item.kind)?achievementIcon(({daily:'daily',weekly:'stars',boss:'trial',workout:'workouts'})[item.kind]):reward?(reward.kind==='nebula'?rewardPreview({kind:'nebula',id:reward.id}):COSMETICS.preview({skin:reward.kind==='skin'?reward.id:'',[reward.kind]:reward.id})):item.icon||achievementIcon(item.kind==='daily'?'daily':item.kind==='weekly'?'stars':'workouts');return `<li class="run-unlock ${item.kind}" style="--unlock-index:${index}"><div class="run-unlock-art">${visual}</div><b>${earnedTitle(item)}</b>${item.xp?`<em>+${item.xp} XP</em>`:''}${item.badgeId?`<button type="button" class="soft-btn" data-badge="${esc(item.badgeId)}">View badge</button>`:reward?`<button type="button" class="reward-use" data-use="${reward.kind}:${esc(reward.id)}">Use it</button>`:'<span class="unlock-kept">Collected</span>'}</li>`;}).join('')}</ul></section>`:'';
+    const news = summary.news.filter(item=>!earned.includes(item)).map(item => `<li class="gr-${item.kind}"><span aria-hidden="true">${item.icon || '✨'}</span><b>${esc(item.text)}</b>${item.xp ? `<em>+${item.xp} XP</em>` : ''}${item.reward ? `<button type="button" class="reward-use" data-use="${item.reward.kind}:${esc(item.reward.id)}">Use it</button>` : ''}</li>`).join('');
     const timing = summary.timing;
     const tip = timing ? `<p class="gr-timing"><b>Timing</b> · Early ${timing.early} · Late ${timing.late}<br>${Math.abs(timing.mean) <= .04 ? 'Nicely centred on the beat.' : timing.mean < 0 ? 'You tend to play early. Let the beat arrive before striking.' : 'You tend to play late. Prepare your hands a little sooner.'}</p>` : '';
-    return `<div class="gr-head${summary.levelUp ? ' level-up' : ''}">${levelRing(info, 46)}<div class="gr-copy"><b class="gr-xp">+${fmt(summary.gained)} XP</b><small>${summary.levelUp ? `<strong class="gr-up">Level up! Level ${info.level} · ${esc(info.title)}</strong>` : `Level ${info.level} · ${esc(info.title)} · ${fmt(info.to - info.xp)} XP to go`}</small><i class="xp-bar"><i style="width:${(info.progress * 100).toFixed(1)}%"></i></i></div>${summary.maxCombo >= 10 ? `<span class="gr-combo">Best combo ${summary.maxCombo}<em>×${comboFor(summary.maxCombo)}</em></span>` : ''}</div>${tip}${news ? `<ul class="gr-news">${news}</ul>` : ''}`;
+    return `<div class="gr-head${summary.levelUp ? ' level-up' : ''}">${levelRing(info, 46)}<div class="gr-copy"><b class="gr-xp">+${fmt(summary.gained)} XP</b><small>${summary.levelUp ? `<strong class="gr-up">Level up! Level ${info.level} · ${esc(info.title)}</strong>` : `Level ${info.level} · ${esc(info.title)} · ${fmt(info.to - info.xp)} XP to go`}</small><i class="xp-bar"><i style="width:${(info.progress * 100).toFixed(1)}%"></i></i></div>${summary.maxCombo >= 10 ? `<span class="gr-combo">Best combo ${summary.maxCombo}<em>×${comboFor(summary.maxCombo)}</em></span>` : ''}</div>${gallery}${comparison}${tip}${news ? `<ul class="gr-news">${news}</ul>` : ''}`;
   }
 
   function bindGameResult(root, game) {
-    requestAnimationFrame(() => centreAchievementIcons(root));
-    root.querySelectorAll('[data-use]').forEach(button => button.addEventListener('click', () => {
-      const [kind, id] = button.dataset.use.split(':');
-      if (game.equip(kind, id)) { button.textContent = 'In use ✓'; button.disabled = true; }
-    }));
+    const wire=()=>{
+      window.EtherealBadges?.bind(root,game);
+      requestAnimationFrame(() => centreAchievementIcons(root));
+      root.querySelectorAll('[data-use]').forEach(button => button.addEventListener('click', () => {
+        const [kind, id] = button.dataset.use.split(':');
+        if (game.equip(kind, id)) { button.textContent = 'In use ✓'; button.disabled = true; }
+      }));
+    };
+    wire();
+    root._resultNewsOff?.();
+    const refresh=()=>{
+      if(!root.isConnected)return false;
+      const dialog=root.closest('dialog');if(root.hidden || dialog && !dialog.open)return;
+      const summary=game.claimResultNews();
+      if(summary){root.innerHTML=gameResultHtml(summary);wire();}
+    };
+    root._resultNewsOff=game.onChange(refresh);
+    requestAnimationFrame(refresh);
   }
 
   window.EtherealCommon = {
-    version: '31',
+    version: '35',
     esc, readJson, writeJson, capitalise, speedLabel,
     STAR_COUNT, scoreFor, starsForScore, starsFor, bestStars, starString, starsHtml, createBestStore, createHistoryStore, resultBestHtml, bestHtml, noStarsHtml, suggestSpeedUp,
     historySummary, historyChartHtml, resultHistoryHtml, openHistory, bindHistoryBadges, exportProgress, importProgress,

@@ -3411,3 +3411,11 @@ html[data-particle-quality="none"] .companion-guides line { filter:none; }
 .scan-skip { font-weight:600 !important; color:var(--muted) !important; }
 
 .scan-skip.active { background:rgba(251,113,133,.16) !important; border-color:rgba(251,113,133,.5) !important; color:#ffd7dd !important; }
+
+/* r34: optional country preferences share the readable save-progress form. */
+.country-preference{margin:18px 0;padding:14px;border:1px solid #7c9daa44;border-radius:14px;background:#12334133;min-width:0;}
+.country-preference .progress-field{margin:0 0 10px;}
+.country-preference select{width:100%;max-width:100%;min-height:42px;padding:9px;font:inherit;font-size:15px;color:#e5edf8;background:#131d30;border:1px solid #8296b855;border-radius:9px;}
+.country-preference p,.country-disclosure{font-size:14px;line-height:1.45;color:#b9ccdb;margin:8px 0;}
+.country-preference a{color:#6ce4dc;}.country-current{color:#87ecdb!important;}
+@media(max-width:360px){.country-preference{padding:11px;margin:14px 0;}.country-preference select{font-size:14px;}}
