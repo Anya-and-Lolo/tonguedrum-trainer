@@ -979,7 +979,9 @@
   }
 
   function selectedSong() {
-    return state.songs.find(s => s.id === state.selectedId) || state.songs[0];
+    const requested=state.songs.find(s => s.id === state.selectedId);
+    const song=(requested&&window.EtherealTongueRepertoire.available(requested)?requested:null) || state.songs[0];
+    return window.EtherealTongueRepertoire.adapt(song,state.instrument);
   }
 
   // A trailing ~ marks a tie: this note is held into the next one instead of being struck
@@ -1741,7 +1743,8 @@
   }
 
   function songMetrics(song) {
-    const stats = sequenceStats(song?.sequence || '');
+    const effective=window.EtherealTongueRepertoire.adapt(song,state.instrument);
+    const stats = sequenceStats(effective?.sequence || '');
     const bpm = Math.max(30, Number(song?.bpm) || 72);
     return {
       bpm,
@@ -1755,6 +1758,7 @@
 
   function songDifficulty(song) {
     const metrics = songMetrics(song);
+    if(song?.exercise)return {level:'easy',label:'Easy',metrics};
     let score = 0;
     score += metrics.bpm >= 180 ? 3 : metrics.bpm >= 140 ? 2 : metrics.bpm >= 105 ? 1 : 0;
     score += metrics.durationSeconds >= 300 ? 3 : metrics.durationSeconds >= 180 ? 2 : metrics.durationSeconds >= 90 ? 1 : 0;
@@ -1792,6 +1796,8 @@
   }
 
   function selectSong(id) {
+    const requested=state.songs.find(song=>song.id===id);
+    if(requested&&!window.EtherealTongueRepertoire.available(requested)){showToast('This collection returns at its next festival.','warning');id='01-note-scale-practice';}
     if(id !== DRILL_ID) COACH?.clear();
     if (JOURNEY && !JOURNEY.isSongOpen(id)) {
       if (state.selectedId && state.selectedId !== id && JOURNEY.isSongOpen(state.selectedId)) {
@@ -1881,7 +1887,7 @@
       return `${text} ${local}`.toLowerCase().includes(q);
     };
 
-    const demos = state.songs.filter(isDemoSong).filter(matchesSearch).filter(songMatchesLevel).filter(song => !JOURNEY || JOURNEY.isSongOpen(song.id));
+    const demos = state.songs.filter(song=>window.EtherealTongueRepertoire.available(song)).filter(song=>!song.minTongues || window.EtherealTongueRepertoire.compatible(song,state.instrument)).filter(isDemoSong).filter(matchesSearch).filter(songMatchesLevel).filter(song => !JOURNEY || JOURNEY.isSongOpen(song.id));
     const demoGroup = document.createElement('section');
     demoGroup.className = 'song-group catalogue-collection demo-collection';
     const demoHeading = document.createElement('div');
@@ -1933,7 +1939,7 @@
   }
 
   function personalSongs() { return state.songs.filter(song => !song.builtIn && !isCommunitySong(song)); }
-  function communitySongs() { return state.songs.filter(isCommunitySong); }
+  function communitySongs() { return state.songs.filter(song=>window.EtherealTongueRepertoire.available(song)).filter(isCommunitySong); }
 
   function updateLibraryCounts() {
     const community = communitySongs();
@@ -1971,7 +1977,7 @@
     updateLibraryCounts();
     const tab = normaliseDifficultyFilter(state.libraryTab);
     const q = String(els.librarySearch?.value || '').trim().toLowerCase();
-    const songs = communitySongs().filter(song => {
+    const songs = communitySongs().filter(song=>!song.minTongues || window.EtherealTongueRepertoire.compatible(song,state.instrument)).filter(song => {
       const title = songTitleParts(song.title), difficulty = songDifficulty(song);
       return (tab === 'all' || difficulty.level === tab) && `${title.fullTitle} ${title.displayTitle} ${title.collection}`.toLowerCase().includes(q);
     });
@@ -2200,6 +2206,7 @@
       ? 'custom tuning'
       : `${state.instrument.key} ${SCALE_NAMES[state.instrument.scaleType]}`;
     els.instrumentTitle.textContent = `${state.instrument.count}-note ${scaleName}${highDrumEnabled() ? ' + high 8-note drum' : ''}`;
+    if(JOURNEY) JOURNEY.setPaths(window.EtherealTongueRepertoire.paths(JOURNEY_PATHS,state.songs,state.instrument));
     createDrum(els.drumWrap, false);
     createDrum(els.stageDrumWrap, true);
     renderHighDrum();
@@ -3219,7 +3226,11 @@
       const vx = x - cx;
       const vy = y - cy;
       const length = Math.max(1, Math.hypot(vx, vy));
-      return { x, y, dx: vx / length, dy: vy / length, distance: length };
+      // A central tongue has no outward vector. Follow its orientation instead
+      // of sending a zero vector to the stage-edge/gradient calculation.
+      const centred = vx === 0 && vy === 0;
+      const angle = (Number(placement.rotate) || 0) * Math.PI / 180;
+      return { x, y, dx: centred ? Math.sin(angle) : vx / length, dy: centred ? -Math.cos(angle) : vy / length, distance: length };
     }
     const rad = placement.angle * Math.PI / 180;
     const dx = Math.sin(rad);
@@ -4883,7 +4894,7 @@
 
   var CLOUD = COMMON.createCloud({
     app: 'ethereal-drum',
-    appName: 'Ethereal Drum',
+    appName: 'Ethereal Tongue Drum',
     keys: PROGRESS_KEYS,
     stats: () => ({ ...COMMON.progressStats(PROGRESS_KEYS, PRACTICE), ...COMMON.progressReadable({ keys: PROGRESS_KEYS, titleOf: id => { const song = state.songs.find(item => item.id === id); return id === DRILL_ID ? 'Rhythm drill' : song ? songTitleParts(song.title).displayTitle : ''; }, journey: JOURNEY }) }),
     onMerged: () => { BEST.reload(); JOURNEY.reload(); GAME.reload(); PRACTICE.reload(); renderSongList(); },
@@ -5085,6 +5096,7 @@
   }
 
   function openSongPathDialog() {
+    JOURNEY.setPaths(window.EtherealTongueRepertoire.paths(JOURNEY_PATHS,state.songs,state.instrument));
     JOURNEY.nodes.forEach(node => {
       if(node.type !== 'drill') return;
       const target = JOURNEY.nodes.slice(node.g+1).find(next => next.id);
@@ -5115,7 +5127,7 @@
     if (chooser?.open) chooser.close();
     const doc = songFileDocument(song, {});
     if (!doc) return;
-    const how = await COMMON.shareSongLink({ doc, title: song.title, appName: 'Ethereal Drum' });
+    const how = await COMMON.shareSongLink({ doc, title: song.title, appName: 'Ethereal Tongue Drum' });
     if (how === 'copied') showToast('Link copied. Paste it in a message to a friend.', 'success');
   }
 
@@ -5946,7 +5958,7 @@
     window.addEventListener('appinstalled', () => {
       deferredPrompt = null;
       els.installBtn.hidden = true;
-      showToast('Installed. Find Ethereal Drum on your home screen.', 'success');
+      showToast('Installed. Find Ethereal Tongue Drum on your home screen.', 'success');
     });
     els.installBtn.addEventListener('click', async () => {
       if (deferredPrompt) {
@@ -5962,7 +5974,7 @@
       else if (/Firefox/.test(ua)) text = 'In Firefox: open the ⋮ menu and choose Install (or Add to Home screen).';
       else if (/SamsungBrowser/.test(ua)) text = 'In Samsung Internet: open the ☰ menu and choose Add page to → Home screen.';
       else if (/Android/.test(ua)) text = 'Open the ⋮ browser menu and choose Install app or Add to Home screen.';
-      else text = 'Click the install icon at the right end of the address bar, or open the browser menu and choose Install Ethereal Drum. Safari on Mac: File → Add to Dock.';
+      else text = 'Click the install icon at the right end of the address bar, or open the browser menu and choose Install Ethereal Tongue Drum. Safari on Mac: File → Add to Dock.';
       els.installHelpText.textContent = text;
       if (!els.installDialog.open) els.installDialog.showModal();
     });
@@ -9234,7 +9246,7 @@
     COMMON.bindHapticsToggle(els.hapticsToggle, HAPTICS_KEY);
     COMMON.bindHistoryBadges({ store: BEST, title: id => state.songs.find(song => song.id === id)?.title });
     els.saveProgressBtn?.addEventListener('click', () => COMMON.openSaveProgress({
-      cloud: CLOUD, appName: 'Ethereal Drum', onFileSave: progressFileSave, onFileLoad: () => els.progressFile.click(), toast: message => showToast(message, 'success')
+      cloud: CLOUD, appName: 'Ethereal Tongue Drum', onFileSave: progressFileSave, onFileLoad: () => els.progressFile.click(), toast: message => showToast(message, 'success')
     }));
     els.deleteProgressBtn?.addEventListener('click', () => COMMON.openDeleteProgress({ cloud: CLOUD, clearLocal: clearLocalProgress, toast: message => showToast(message, 'success') }));
     COMMON.bindRecChips({ rec: REC, recBtn: els.recChipBtn, takeBtn: els.takeChipBtn, toast: message => showToast(message, 'success') });
@@ -9270,7 +9282,6 @@
     els.micCheckBtn?.addEventListener('click', () => { els.myDrumDialog?.close(); openMicCheckDialog(); });
     // Phone dock on the stage: Play opens the full-screen focus view, like the handpan app.
     els.dockPlayBtn?.addEventListener('click', () => {
-      if (window.innerWidth <= 760 && !state.focusMode && !state.playing) setFocusMode(true);
       els.playBtn.click();
     });
     els.dockLoopBtn?.addEventListener('click', () => els.loopBtn.click());
@@ -9536,7 +9547,7 @@
       stage.style.minHeight = '';
       const viewport = window.visualViewport?.height || window.innerHeight;
       const top = stage.getBoundingClientRect().top + window.scrollY;
-      const height = Math.max(400, Math.floor(viewport - top - 14));
+      const height = Math.max(360, Math.min(680, Math.floor(viewport - top - 14)));
       stage.style.height = `${height}px`;
       stage.style.minHeight = `${height}px`;
       if (before !== stage.style.height) window.requestAnimationFrame(resizeCanvas);

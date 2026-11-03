@@ -647,7 +647,10 @@
         out.weekly = { ...bWeek, ...aWeek, claimed: Boolean(aWeek.claimed || bWeek.claimed) };
         for (const n of ['runs', 'notes', 'lessons']) out.weekly[n] = Math.max(aWeek[n] || 0, bWeek[n] || 0);
         for (const n of ['days', 'songs']) out.weekly[n] = [...new Set([...(aWeek[n] || []), ...(bWeek[n] || [])])];
-      } else if (aWeek && bWeek) out.weekly = !aWeek.claimed ? aWeek : !bWeek.claimed ? bWeek : aWeek.stamp > bWeek.stamp ? aWeek : bWeek;
+      } else if (aWeek && bWeek) {
+        const rank=w=>Number(String(w.stamp).match(/^constellation-(\d+)$/)?.[1])||1;
+        out.weekly=rank(aWeek)!==rank(bWeek)?(rank(aWeek)>rank(bWeek)?aWeek:bWeek):!aWeek.claimed?aWeek:!bWeek.claimed?bWeek:aWeek;
+      }
       for (const name of ['day', 'daily', 'workout']) {
         const a = mine[name], b = theirs[name];
         const stamp = value => String(value?.stamp || value?.day || '');
@@ -1758,20 +1761,24 @@
     let admin = readJson(adminKey, false) === true;
     data.bosses = data.bosses || {};
     const nodes = [];
-    paths.forEach((p, pathIndex) => p.nodes.forEach((node, index) => {
-      if ((node.type === 'song' || node.type === 'boss') && !songOk(node.id)) return;
-      nodes.push({ ...node, path: p.id, pathIndex, key: `${p.id}-${index}`, g: nodes.length });
-    }));
-    // A song can be on the path twice (a stop, and later its final trial): open if either is.
     const songNodes = new Map();
-    nodes.filter(node => node.type === 'song' || node.type === 'boss').forEach(node => songNodes.set(node.id, [...(songNodes.get(node.id) || []), node]));
+    const rebuild = next => {
+      paths=next;nodes.length=0;songNodes.clear();
+      paths.forEach((p,pathIndex)=>p.nodes.forEach((node,index)=>{
+        if((node.type==='song'||node.type==='boss')&&!songOk(node.id))return;
+        nodes.push({...node,path:p.id,pathIndex,optional:Boolean(p.optional),key:node.key||`${p.id}-${index}`,g:nodes.length});
+      }));
+      nodes.filter(n=>n.type==='song'||n.type==='boss').forEach(n=>songNodes.set(n.id,[...(songNodes.get(n.id)||[]),n]));
+    };
+    rebuild(paths);
     const save = () => writeJson(key, data);
     // A final trial counts as five stars once it is beaten.
     const starsOf = node => (node.type === 'song' ? bestStars(best.get(node.id)) : node.type === 'boss' ? (data.bosses[node.key] ? STAR_COUNT : 0) : Number(data.drills[node.key]) || 0);
-    const unlocked = node => admin || nodes.slice(0, node.g).every(before => starsOf(before) >= JOURNEY_NEED);
+    const unlocked = node => admin || nodes.slice(0, node.g).filter(before=>node.optional?before.path===node.path:!before.optional).every(before => starsOf(before) >= JOURNEY_NEED);
     const j = {
       key,
-      paths,
+      get paths(){return paths;},
+      setPaths(next){rebuild(next);},
       nodes,
       need: JOURNEY_NEED,
       activeDrill: null,
@@ -1877,7 +1884,7 @@
       const pathOpen = index => journey.nodes.some(node => node.pathIndex === index && journey.unlocked(node));
       const pathDone = index => journey.nodes.filter(node => node.pathIndex === index).every(node => journey.starsOf(node) >= journey.need);
       const total = journey.nodes.length * STAR_COUNT;
-      const allDone = journey.nodes.every(node => journey.starsOf(node) >= journey.need);
+      const allDone = journey.nodes.filter(node=>!node.optional).every(node => journey.starsOf(node) >= journey.need);
       const rows = pathNodes.map((node, index) => {
         const stars = journey.starsOf(node);
         const open = journey.unlocked(node);
@@ -2075,7 +2082,7 @@
     { id: 'star2', icon: achievementIcon('star2','badge'), name: 'Second star', text: 'Earn at least 2 stars on a song.', xp: 35 },
     { id: 'star3', icon: achievementIcon('star3','badge'), name: 'Third star', text: 'Earn at least 3 stars on a song.', xp: 50 },
     { id: 'star4', icon: achievementIcon('star4','badge'), name: 'Fourth star', text: 'Earn at least 4 stars on a song.', xp: 75 },
-    { id: 'constellation', icon: achievementIcon('constellation','badge'), name: 'Your constellation', text: 'Complete your first weekly constellation. Take as many days as you need.', xp: 200 },
+    { id: 'constellation', icon: achievementIcon('constellation','badge'), name: 'Your constellation', text: 'Complete your first constellation.', xp: 200 },
     { id: 'flow', icon: achievementIcon('flow','badge'), name: 'Cosmic flow', text: 'Build a 50-note combo in one run.', xp: 150 },
     { id: 'five', icon: achievementIcon('five','badge'), name: 'Five stars', text: 'Earn ★★★★★ on a song.', xp: 150 },
     { id: 'flawless', icon: achievementIcon('flawless','badge'), name: 'Flawless', text: 'Finish a song with no missed or wrong notes.', xp: 200 },
@@ -2125,7 +2132,7 @@
   }
 
   function createGame({ app, keys, best, journey, titleOf = id => id, levelOf = () => 'easy', drillId = '', practice = null, songInfo = () => null }) {
-    const rewardCatalog = kind => (COSMETICS.catalog[kind] || []).filter(item => app !== 'ethereal-drum' || item.tongue !== false);
+    const rewardCatalog = kind => (COSMETICS.catalog[kind] || []).filter(item => (app !== 'ethereal-drum' || item.tongue !== false) && (!item.onlyTongue || app === 'ethereal-drum'));
     const rewardKinds = REWARD_KINDS.filter(kind => kind !== 'shape' || app === 'ethereal-drum');
     const key = `${app}-game-v1`;
     const blank = () => ({ xp: 0, c: {}, badges: {}, tiers: {}, owned: [], skin: '', nebula: '', rim: '', accent: '', pattern: '', day: null, daily: null, workout: null, last: null });
@@ -2209,12 +2216,19 @@
         return { done, text: `Unlock ${item?.name || 'a masterwork finish'}`, value: done ? 1 : 0, goal: 1 };
       }
       const [kind, goal] = Object.entries(unlock)[0];
+      if(kind==='bossPath'){
+        const node=journey?.nodes.find(n=>n.type==='boss'&&n.path===goal);
+        const earned=node&&journey.starsOf(node)>=STAR_COUNT;
+        const prize=SKINS.find(item=>item.unlock?.bossPath===goal);
+        const done=Boolean(earned||(prize&&data.owned.includes(`skin:${prize.id}`)));
+        return {done,text:'Complete the seasonal final trial',value:done?1:0,goal:1};
+      }
       if (kind === 'boss') {
         const name = journey?.paths[goal]?.name || `path ${goal + 1}`;
         const done = bossBeaten(goal);
         return { done, text: `Beat the ${name} final trial`, value: done ? 1 : 0, goal: 1 };
       }
-      const map = { level: ['level', n => `Reach level ${n}`], streak: ['streak', n => `Collect ${n} practice days`], weekly: ['weekly', n => `Complete ${n} weekly constellations`], daily: ['daily', n => `Complete ${n} daily challenges`],
+      const map = { level: ['level', n => `Reach level ${n}`], streak: ['streak', n => `Collect ${n} practice days`], weekly: ['weekly', n => `Complete ${n} constellations`], daily: ['daily', n => `Complete ${n} daily challenges`],
         runs: ['runs', n => `Finish ${fmt(n)} songs`], notes: ['notes', n => `Hit ${fmt(n)} notes`], minutes: ['minutes', n => `Practise for ${fmt(n)} minutes`], perfect: ['perfect', n => `Hit ${fmt(n)} Perfect notes`], stars: ['stars', n => `Collect ${n} stars`], workouts: ['workouts', n => `Finish ${n} of Today's workouts`], combo: ['combo', n => `Reach a ${n}-note combo`] };
       const [source, text] = map[kind];
       const now = value(source);
@@ -2254,22 +2268,24 @@
 
     function weekStamp() { const date = new Date(); date.setDate(date.getDate() - (date.getDay() + 6) % 7); return dayStamp(date); }
     function weeklyPlan() {
-      const stamp = weekStamp();
-      if (!data.weekly || (data.weekly.claimed && data.weekly.stamp !== stamp)) {
+      const stamp = 'constellation-1';
+      if (!data.weekly) {
         data.weekly = { stamp, runs: 0, notes: 0, songs: [], days: [], lessons: 0, claimed: false }; save();
       }
       return data.weekly;
     }
     function weeklyStatus() {
       const w = weeklyPlan();
+      const round=Math.min(3,Object.keys(data.weeklyClaims || {}).length+(w.claimed?0:1));
+      const goals=[[3,150,2,1,2],[5,300,3,2,3],[8,500,4,3,4]][Math.max(0,round-1)];
       const tasks = [
-        { id: 'runs', text: 'Finish 3 songs', goal: 3, now: w.runs || 0 },
-        { id: 'notes', text: 'Play 150 notes', goal: 150, now: w.notes || 0 },
-        { id: 'songs', text: 'Explore 2 different songs', goal: 2, now: w.songs.length },
-        { id: 'lessons', text: 'Complete a Practice studio step', goal: 1, now: w.lessons || 0 },
-        { id: 'days', text: 'Play on 2 days, at your own pace', goal: 2, now: w.days.length }
+        { id: 'runs', text: `Finish ${goals[0]} songs`, goal: goals[0], now: w.runs || 0 },
+        { id: 'notes', text: `Play ${goals[1]} notes`, goal: goals[1], now: w.notes || 0 },
+        { id: 'songs', text: `Explore ${goals[2]} different songs`, goal: goals[2], now: w.songs.length },
+        { id: 'lessons', text: `Complete ${goals[3]} Practice studio steps`, goal: goals[3], now: w.lessons || 0 },
+        { id: 'days', text: `Play on ${goals[4]} days, at your own pace`, goal: goals[4], now: w.days.length }
       ].map(t => ({ ...t, now: Math.min(t.now, t.goal), done: t.now >= t.goal }));
-      return { ...w, tasks, completed: tasks.filter(t => t.done).length, prize: 'Starlight opal' };
+      return { ...w, round: Object.keys(data.weeklyClaims || {}).length+(w.claimed?0:1), tasks, completed: tasks.filter(t => t.done).length, prize: ['Starlight opal','Aurora pearl','Cosmic copper'][Math.min(2, Object.keys(data.weeklyClaims || {}).length-(w.claimed?1:0))], prizeId: ['starlight-opal','aurora-pearl','cosmic-copper'][Math.min(2, Object.keys(data.weeklyClaims || {}).length-(w.claimed?1:0))] };
     }
     function regularityBonus() {
       const days = new Set(data.activeDays || []), log = readJson(keys.practice, {}) || {};
@@ -2329,7 +2345,7 @@
       const w = weeklyPlan(), status = weeklyStatus();
       data.weeklyClaims = data.weeklyClaims || {};
       if (!w.claimed && status.completed === status.tasks.length) {
-        if (!data.weeklyClaims[w.stamp]) { data.weeklyClaims[w.stamp] = Date.now(); addXp(500, [], ''); news.push({ kind: 'weekly', text: 'Weekly constellation complete', xp: 500 }); }
+        if (!data.weeklyClaims[w.stamp]) { data.weeklyClaims[w.stamp] = Date.now(); addXp(500, [], ''); news.push({ kind: 'weekly', text: 'Constellation complete', xp: 500 }); }
         w.claimed = true;
       }
       if(Object.keys(data.weeklyClaims).length)award('constellation',news);
@@ -2389,6 +2405,12 @@
       onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
       streak: () => ({ days: Math.max(c('dayStreak'), dayStreak()), bonus: regularityBonus() }),
       weekly: () => weeklyStatus(),
+      nextConstellation() {
+        if (!weeklyPlan().claimed) return false;
+        const n=Object.keys(data.weeklyClaims || {}).length+1;
+        if(n>3)return false;
+        data.weekly={stamp:'constellation-'+n,runs:0,notes:0,songs:[],days:[],lessons:0,claimed:false};save();tell();return true;
+      },
       beginWorkout(step) { workoutIndex = workoutPlan().steps.findIndex(item => item === step); },
       sectionPass({ id, from, to, total, hits }) {
         const plan = workoutPlan();
@@ -2512,6 +2534,11 @@
         if (mode === 'practice' && journey) {
           (journey.recordBoss?.(id, { accuracy, speed }) || []).forEach(node => {
             award(`trial${node.pathIndex}`, news);
+            const prize=SKINS.find(item=>item.id===node.reward),prizeKey=`skin:${prize?.id}`;
+            if(prize&&!data.owned.includes(prizeKey)){
+              data.owned.push(prizeKey);
+              news.push({kind:'reward',text:`New finish: ${prize.name}`,reward:{kind:'skin',id:prize.id}});
+            }
             news.unshift({ kind: 'boss', icon: '🏆', text: `Final trial beaten: ${journey.paths[node.pathIndex]?.name || ''}!` });
           });
         }
@@ -2692,6 +2719,13 @@
 
   let hubDialog = null;
 
+  function dailyResetText() {
+    const now = new Date(), end = new Date(now);
+    end.setHours(24, 0, 0, 0);
+    const minutes = Math.round((end - now) / 60000);
+    return `New ones in ${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+  }
+
   function openHub({ game, tab = 'today', onWorkout, toast }) {
     if (!hubDialog) hubDialog = makeDialog('hub-dialog');
     const d = hubDialog;
@@ -2706,10 +2740,9 @@
       let body = '';
       if (tab === 'today') {
         const daily = game.daily();
-        const left = (() => { const now = new Date(); const end = new Date(now); end.setHours(24, 0, 0, 0); const m = Math.round((end - now) / 60000); return `${Math.floor(m / 60)} h ${m % 60} min`; })();
         const plan = game.workout();
         const streak = game.streak();
-        body = `<div class="practice-positive"><b>${streak.days} practice days collected</b><span>Practice rhythm bonus: +${streak.bonus}% XP</span><small>Every visit counts. Breaks never reset your progress. Up to 30% extra XP for playing regularly.</small></div><section class="hub-section"><div class="hub-section-head"><h3>Daily challenges</h3><small>New ones in ${left}</small></div>
+        body = `<div class="practice-positive"><b>${streak.days} practice days collected</b><span>Practice rhythm bonus: +${streak.bonus}% XP</span><small>Every visit counts. Breaks never reset your progress. Up to 30% extra XP for playing regularly.</small></div><section class="hub-section"><div class="hub-section-head"><h3>Daily challenges</h3><small data-daily-reset>${dailyResetText()}</small></div>
           <ul class="daily-list">${daily.map(item => `<li class="daily-item${item.done ? ' done' : ''}">
             <span class="daily-check" aria-hidden="true">${item.done ? '✓' : ''}</span>
             <span class="daily-copy"><b>${esc(item.text)}</b><i class="xp-bar small"><i style="width:${Math.round((item.now / item.goal) * 100)}%"></i></i><small>${fmt(item.now)} / ${fmt(item.goal)} · +${item.xp} XP</small></span>
@@ -2720,17 +2753,17 @@
       } else if (tab === 'weekly') {
         const week = game.weekly();
         const positions = [[40,100],[120,35],[225,80],[320,28],[395,105]];
-        body = `<section class="weekly-constellation"><small>YOUR WEEKLY CONSTELLATION</small><h3>Five lights, one special reward</h3><p>Take your time. An unfinished constellation stays with you, even next week.</p><svg viewBox="0 0 440 145" role="img" aria-label="Weekly constellation progress"><path d="M40 100L120 35L225 80L320 28L395 105" fill="none" stroke="#6e8aa9" stroke-width="2"/>${week.tasks.map((t,i) => `<g transform="translate(${positions[i][0]} ${positions[i][1]})" class="weekly-star${t.done ? ' lit' : ''}"><circle r="23" fill="${t.done ? '#163e51' : '#101d32'}" stroke="${t.done ? '#65e8eb' : '#71849d'}"/><path d="M0-15L4-5L15-4L7 4L9 15L0 10L-9 15L-7 4L-15-4L-4-5Z" fill="${t.done ? '#ffe297' : '#435976'}"/></g>`).join('')}</svg><ol class="weekly-tasks">${week.tasks.map(t => `<li class="${t.done ? 'done' : ''}"><span>${t.done ? '✓' : '○'}</span><b>${esc(t.text)}</b><em>${t.now} / ${t.goal}</em></li>`).join('')}</ol><div class="weekly-prize">${COSMETICS.preview({skin:'starlight-opal'}, {tongue:game.isTongue})}<div><small>SPECIAL REWARD</small><h3>Starlight opal</h3><p>${week.claimed ? 'Yours! Find it in the drum atelier.' : `${week.completed} / 5 lights · a luminous opal finish and +500 XP`}</p><span>New constellations arrive weekly. Your prizes stay forever.</span></div></div></section>`;
+        body = `<section class="weekly-constellation"><small>YOUR CONSTELLATION</small><h3>Five lights, one special reward</h3><p>A collection of challenges at your own pace. Your progress stays until you finish.</p><svg viewBox="0 0 440 145" role="img" aria-label="Constellation progress"><path d="M40 100L120 35L225 80L320 28L395 105" fill="none" stroke="#6e8aa9" stroke-width="2"/>${week.tasks.map((t,i) => `<g transform="translate(${positions[i][0]} ${positions[i][1]})" style="--star-index:${i}" class="weekly-star${t.done ? ' lit' : ''}"><circle r="23" fill="${t.done ? '#163e51' : '#101d32'}" stroke="${t.done ? '#65e8eb' : '#71849d'}"/><path d="M0-15L4-5L15-4L7 4L9 15L0 10L-9 15L-7 4L-15-4L-4-5Z" fill="${t.done ? '#ffe297' : '#435976'}"/></g>`).join('')}</svg><ol class="weekly-tasks">${week.tasks.map(t => `<li class="${t.done ? 'done' : ''}"><span>${t.done ? '✓' : '○'}</span><b>${esc(t.text)}</b><em>${t.now} / ${t.goal}</em></li>`).join('')}</ol><div class="weekly-prize">${COSMETICS.preview({skin:week.prizeId}, {tongue:game.isTongue})}<div><small>SPECIAL REWARD</small><h3>${esc(week.prize)}</h3><p>${week.claimed ? 'Yours! Find it in the drum atelier.' : `${week.completed} / 5 lights · an exclusive finish and +500 XP`}</p><span>Exclusive constellation rewards. Yours to keep.</span></div></div>${week.claimed && week.round<3 ? '<button type="button" class="soft-btn weekly-next" data-next-constellation>Start next constellation</button>' : ''}</section>`;
       } else if (tab === 'milestones') {
         body = `<ul class="milestone-list">${game.milestones().map(m => `<li class="milestone"><span class="ms-icon" aria-hidden="true">${m.icon}</span><span class="ms-copy"><b>${esc(m.name)} <em class="ms-tier">${m.tier ? roman(m.tier) : ''}</em></b>
           <span class="ms-pips">${m.tiers.map((goal, i) => `<i class="${i < m.tier ? 'on' : ''}" title="${fmt(goal)}"></i>`).join('')}</span>
           ${m.next ? `<i class="xp-bar small"><i style="width:${Math.round(m.progress * 100)}%"></i></i><small>${fmt(m.now)} / ${fmt(m.next)}${m.unit ? ` ${m.unit}` : ''} · next +${m.xp} XP</small>` : '<small class="ms-max">All tiers done</small>'}</span></li>`).join('')}</ul>`;
       } else if (tab === 'badges') {
         const list = game.badges();
-        body = `<p class="hub-note">${list.filter(b => b.at).length} of ${list.length} badges</p><ul class="badge-grid">${list.map(b => `<li class="badge${b.at ? ' got' : ''}"><button type="button" class="badge-open" data-badge="${esc(b.id)}"><span class="badge-icon" aria-hidden="true">${b.icon}${b.at ? '' : `<i class="badge-padlock">${ICONS.lock}</i>`}</span><b>${esc(b.name)}</b><small>${esc(b.text)}</small><em>+${b.xp} XP</em><span class="badge-read-more">View badge</span></button></li>`).join('')}</ul>`;
+        body = `<p class="hub-note">${list.filter(b => b.at).length} of ${list.length} badges</p><ul class="badge-grid">${list.map(b => `<li class="badge${b.at ? ' got' : ''}"><button type="button" class="badge-open" data-badge="${esc(b.id)}"><span class="badge-icon" aria-hidden="true">${b.icon}${b.at ? '' : `<i class="badge-padlock">${ICONS.lock}</i>`}</span><b>${esc(b.name)}</b><small>${esc(({"perfect100": "100 Perfect notes in a row.", "week": "Reach your goal on any 7 days.", "beginner": "Finish path 1 and its trial.", "constellation": "Complete your first constellation.", "weekend": "Play on Saturday and Sunday.", "mic": "Finish a song with the mic on."})[b.id] || b.text)}</small><em>+${b.xp} XP</em><span class="badge-read-more">View badge</span></button></li>`).join('')}</ul>`;
       } else {
         const kinds = [['skin', 'Finishes'], ['rim', 'Rims & rattan'], ['accent', 'Note centres'], ['pattern', 'Engravings'], ['nebula', 'Nebulas'], ...(game.isTongue ? [['shape','Tongue shapes']] : [])];
-        const list = game.rewards(rewardKind);
+        const list = game.rewards(rewardKind).filter(item=>!['Constellation','Seasonal'].includes(item.tier) || item.owned);
         const selected = previewItem && previewItem.kind === rewardKind ? previewItem : list.find(item => item.id === (previewLook[rewardKind] || '')) || list.find(item => item.equipped) || list[0];
         const scene = previewLook.nebula ? `style="--atelier-scene:url('${COSMETICS.asset(`nebula-${previewLook.nebula}.webp`)}')"` : '';
         const preview = COSMETICS.preview(previewLook, { large: true, tongue: game.isTongue });
@@ -2752,11 +2785,18 @@
       </div>`;
       requestAnimationFrame(() => centreAchievementIcons(d));
       window.EtherealBadges?.bind(d,game);
-      d.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => { tab = button.dataset.tab; paint(); }));
+      d.querySelector('[data-next-constellation]')?.addEventListener('click',()=>{game.nextConstellation();paint();});
+      const selectTab = next => {
+        if (next === tab) return;
+        tab = next;
+        game.refresh();
+        paint();
+      };
+      d.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => selectTab(button.dataset.tab)));
       d.querySelector('[role=tablist]').addEventListener('keydown', event => {
         const index = tabs.findIndex(([id]) => id === tab);
         const next = event.key === 'ArrowRight' ? (index + 1) % tabs.length : event.key === 'ArrowLeft' ? (index + tabs.length - 1) % tabs.length : event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : -1;
-        if (next < 0) return; event.preventDefault(); tab = tabs[next][0]; paint(); d.querySelector(`[data-tab="${tab}"]`).focus();
+        if (next < 0) return; event.preventDefault(); selectTab(tabs[next][0]); d.querySelector(`[data-tab="${tab}"]`).focus();
       });
       d.querySelectorAll('[data-swap]').forEach(button => button.addEventListener('click', () => { if (game.swap(button.dataset.swap)) { toast?.('New challenge! You can swap one a day.'); paint(); } }));
       d.querySelectorAll('[data-step]').forEach(button => button.addEventListener('click', () => { const step = game.workout().steps[Number(button.dataset.step)]; d.close(); onWorkout?.(step); }));
@@ -2767,7 +2807,12 @@
     paint();
     if (!d.open) d.showModal();
     clearInterval(d.gameTimer);
-    d.gameTimer = setInterval(() => { if (d.open) { game.refresh(); paint(); } }, 60000);
+    // Browsing a collection must not replace its DOM and reset scroll/focus.
+    // Refresh the snapshot when entering another tab or reopening this dialog.
+    d.gameTimer = setInterval(() => { if (d.open && tab === 'today') {
+      const countdown = d.querySelector('[data-daily-reset]');
+      if (countdown) countdown.textContent = dailyResetText();
+    } }, 60000);
     d.addEventListener('close', () => clearInterval(d.gameTimer), { once: true });
   }
 
@@ -2812,7 +2857,7 @@
   }
 
   window.EtherealCommon = {
-    version: '35',
+    version: '36',
     esc, readJson, writeJson, capitalise, speedLabel,
     STAR_COUNT, scoreFor, starsForScore, starsFor, bestStars, starString, starsHtml, createBestStore, createHistoryStore, resultBestHtml, bestHtml, noStarsHtml, suggestSpeedUp,
     historySummary, historyChartHtml, resultHistoryHtml, openHistory, bindHistoryBadges, exportProgress, importProgress,

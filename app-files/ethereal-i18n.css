@@ -47,3 +47,47 @@ html[dir="rtl"] .stage-song-name,html[dir="rtl"] .stage-hand-legend em,html[dir=
  html .topbar .top-actions{grid-area:actions;width:100%;margin:0;justify-self:center;justify-content:center!important;}
 }
 @media(min-width:761px) and (max-width:1100px){body .note-stage>.rotate-drum-pair{top:12px!important;}body .note-stage .stage-hand-legend{top:78px!important;}}
+
+/* Portrait tablets: a compact toolbar and clear diagonal approaches. */
+@media(min-width:761px) and (max-width:1100px) and (orientation:portrait){
+ body .trainer-toolbar{padding:10px 14px;}
+ body .trainer-toolbar .toolbar-controls{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;align-items:center;justify-content:space-between;gap:12px!important;width:100%;min-width:0;}
+ body .toolbar-controls>.mode-segmented{display:flex!important;width:auto!important;flex:0 0 auto;min-width:0;}
+ body .toolbar-controls>.mode-segmented .segment{flex:0 0 auto;min-height:42px!important;padding:9px 12px!important;font-size:16px!important;line-height:1.25;white-space:nowrap;}
+ body .toolbar-controls .practice-options{display:flex;flex:0 1 auto;width:auto;min-width:0;margin:0;margin-inline-start:auto;justify-content:flex-end;align-items:center;gap:7px;flex-wrap:wrap;}
+ body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls .practice-options{display:none!important;}
+ body .practice-options .wait-style-select{width:150px;min-width:0;max-width:150px;height:38px;}
+ body .practice-options .rec-chip{min-height:38px;white-space:nowrap;}
+ body .note-stage>.stage-overlay.top-left{left:10%!important;right:10%!important;width:auto!important;display:grid;grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:8px!important;}
+ body .stage-overlay.top-left>#totalNotesLabel{display:none;}
+ body .stage-overlay.top-left>.mobile-stage-stats{display:contents;}
+}
+
+/* r37: calm centred modes, compact badge summaries and selectable text without a caret. */
+body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls{justify-content:center!important;}
+body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls>.mode-segmented{margin-inline:auto!important;}
+:where(body,dialog){caret-color:transparent;}
+:where(input,textarea,[contenteditable="true"]){caret-color:auto;}
+.badge-open>small{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;line-height:1.35!important;min-height:2.7em;}
+.badge-open>b{line-height:1.25!important;}
+.weekly-next{display:block;margin:20px auto 0;min-height:44px;padding:10px 20px;}
+@media(min-width:521px) and (max-width:760px){
+ .trainer-toolbar .toolbar-controls{justify-content:center;}
+ .toolbar-controls>.mode-segmented{flex:0 0 auto!important;width:auto!important;}
+ .toolbar-controls>.mode-segmented .segment{flex:0 0 auto!important;padding:9px 12px!important;}
+ .stage-song-name{left:86px!important;right:98px!important;text-align:center;}
+ .stage-song-name small{display:none!important;}
+}
+
+body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls .practice-options{display:none!important;}
+
+@media(min-width:640px){.journey-tabs:has(button:nth-child(4)):not(:has(button:nth-child(5))){grid-template-columns:repeat(4,minmax(0,1fr));}}
+@media(max-width:639px){.journey-tabs:has(button:nth-child(4)){grid-template-columns:repeat(2,minmax(0,1fr));}}
+
+/* r38: align modes with the left edge when the view switch is present. */
+@media(min-width:761px){
+ body:not([data-mode="practice"]):not([data-mode="wait"]) .trainer-toolbar .toolbar-controls{justify-content:space-between!important;}
+ body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls>.mode-segmented{margin-inline:0!important;}
+ body:not([data-mode="practice"]):not([data-mode="wait"]) .toolbar-controls>.display-control{display:flex!important;flex:0 0 auto!important;width:auto!important;margin-inline-start:auto!important;}
+ .toolbar-controls>.display-control{margin-inline-start:auto;}
+}

@@ -361,7 +361,7 @@ body.wide-fit .lesson-banner { grid-area:coach; width:100%; box-sizing:border-bo
 /* r30 · broad tongue cuts and collectible petal profiles. */
 .tongue-cut { position:absolute; inset:5% 8%; width:84%; height:90%; pointer-events:none; overflow:visible; }
 .tongue-cut g { display:none; }
-.tongue-cut path { fill:none; stroke:#081120; stroke-opacity:.58; stroke-width:.025; stroke-linecap:round; }
+.tongue-cut .td-cut-depth,.tongue-cut .td-cut-edge { fill:none; stroke:#081120; stroke-opacity:.58; stroke-width:.025; stroke-linecap:round; }
 body:not([data-shape]) .td-cut-round,body[data-shape="lotus"] .td-cut-lotus,body[data-shape="double"] .td-cut-double { display:inline; }
 body[data-shape="lotus"] .tongue { clip-path:polygon(18% 0,82% 0,96% 20%,99% 45%,88% 72%,66% 88%,50% 100%,34% 88%,12% 72%,1% 45%,4% 20%); border-radius:34% 34% 45% 45%; }
 body[data-shape="double"] .tongue { border-radius:45% 45% 36% 36%; }
@@ -596,14 +596,14 @@ body[data-skin="nebula"] .tongue-cut .td-cut-double .td-cut-edge{stroke-width:1.
 .lesson-banner{padding:20px 22px;gap:20px;align-items:center;}
 .lesson-banner>div:first-child{min-width:0;}
 .lesson-banner small{font-size:14px!important;line-height:1.5;letter-spacing:.04em;}
-.lesson-banner p{font-size:17px!important;line-height:1.65;margin:10px 0;color:#c5d6e8;}
-.lesson-banner>div>span{font-size:14px!important;line-height:1.6;}
+.lesson-banner p{font-size:17px!important;line-height:1.4;margin:7px 0;color:#c5d6e8;}
+.lesson-banner>div>span{font-size:14px!important;line-height:1.35;}
 .lesson-banner-actions{display:grid!important;grid-template-columns:repeat(3,minmax(95px,1fr));gap:9px;align-self:stretch;align-content:center;}
 .lesson-banner .lesson-banner-actions button{min-height:48px;font-size:16px;padding:10px 16px;border-radius:11px;white-space:normal;margin:0;}
-.lesson-school small,.lesson-school nav span{font-size:14px;line-height:1.6;letter-spacing:.04em;}
-.lesson-school nav b{font-size:17px;line-height:1.45;}.lesson-school nav button{padding:16px;gap:8px;}
-.lesson-school>header p,.lesson-plan>p,.lesson-plan li p{font-size:17px;line-height:1.75;}
-.lesson-plan li b{font-size:20px;}.lesson-plan li small,.lesson-footnote{font-size:14px!important;line-height:1.65;}
+.lesson-school small,.lesson-school nav span{font-size:14px;line-height:1.35;letter-spacing:.04em;}
+.lesson-school nav b{font-size:17px;line-height:1.3;}.lesson-school nav button{padding:16px;gap:6px;}
+.lesson-school>header p,.lesson-plan>p,.lesson-plan li p{font-size:17px;line-height:1.4;}
+.lesson-plan li b{font-size:20px;}.lesson-plan li small,.lesson-footnote{font-size:14px!important;line-height:1.35;}
 .lesson-plan button{font-size:16px;padding:12px 18px;min-height:48px;margin-top:16px;border-radius:11px;}
 .lesson-school>header>small{font-size:15px;letter-spacing:.1em;}
 .lesson-school-grid{grid-template-columns:250px minmax(0,1fr);}
@@ -719,4 +719,54 @@ body.tablet-fit #mobileViewToggleBtn{display:none!important;}
 
 @media(max-width:360px){.stage-hand-legend em{white-space:normal!important;max-width:54px;line-height:1.2;}.stage-hand-legend span{align-items:flex-start;}.stage-hand-legend i{margin-top:3px;}}
 
+/* Keep the original pads and remove the extra inner SVG outlines. */
+.tongue-cut{display:none;}
+body[data-skin="nebula"] .tongue:not(.active):not(.expected):not(.wrong):not(.mic-heard){border:1.8px solid #f2c875;}
+body[data-skin="nebula"] .tongue:is(.active,.expected,.mic-heard){border-color:#ffe9a6;}
+
+@media(min-width:761px) and (max-width:1100px) and (orientation:portrait){
+ body #noteStage>.rotate-drum-pair{display:none!important;}
+ body .transport{display:flex!important;justify-content:center;align-items:center;gap:8px!important;}
+ body #transportRotateBtn{display:grid;place-items:center;width:36px;min-width:36px;height:40px;border-radius:11px;flex-shrink:0;border:1px solid #c4b5fd44;background:#111827;color:#c4b5fd;cursor:pointer;}
+}
+
 @media(min-width:761px) and (max-width:1100px){.note-stage .stage-overlay.top-left span{font-size:13px!important;min-height:52px;}.note-stage .stage-overlay.top-left span b{font-size:21px!important;}}
+
+/* r37: a modest maker's seal only where there is no central tongue or engraving. */
+.ethereal-seal{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-3deg);z-index:2;pointer-events:none;user-select:none;width:15%;aspect-ratio:1;border:2px solid #d9bc7b99;border-radius:13% 8% 14% 7%;display:grid;place-items:center;color:#e6d2a6b3;font:800 clamp(7px,1.3vw,11px)/1.4 Georgia,serif;letter-spacing:.08em;text-align:center;text-shadow:0 1px 1px #fff3,0 -1px 1px #080e20;box-shadow:inset 0 1px 2px #080e2055,0 1px 1px #fff2;}
+.ethereal-seal .seal-chinese{display:none;font-family:"Microsoft YaHei","PingFang SC",serif;font-size:1.5em;letter-spacing:.12em;line-height:1.1;}
+html:lang(zh-CN) .ethereal-seal .seal-latin{display:none;}html:lang(zh-CN) .ethereal-seal .seal-chinese{display:block;}
+.has-center-tongue>.ethereal-seal,body[data-pattern]:not([data-pattern=""]) .ethereal-seal{display:none;}
+@media(min-width:521px) and (max-width:760px){.note-stage .stage-dock{left:22%!important;right:22%!important;}.note-stage .speed-cycle-btn{right:12px;}}
+
+/* r38: upright maker's seal, steady opaque stars and a full-width nebula trail. */
+.ethereal-seal{width:9%;height:30%;aspect-ratio:auto;border-radius:13% 8% 14% 7%;transform:translate(-50%,-50%) rotate(-2deg);font:700 clamp(6px,1.1vw,10px)/1 Georgia,serif;letter-spacing:0;}
+.ethereal-seal>span{writing-mode:vertical-rl;text-orientation:upright;letter-spacing:.035em;}
+.ethereal-seal .seal-chinese{font-size:1.6em;line-height:1;letter-spacing:.1em;}
+.weekly-star,.weekly-star.lit{opacity:1!important;}
+.weekly-star circle{fill:#101d32;fill-opacity:1;}
+.weekly-star.lit circle{fill:#163e51;}
+.weekly-star.lit{animation:constellationChase 6s ease-in-out infinite;animation-delay:calc(var(--star-index,0)*1.2s);}
+@keyframes constellationChase{0%,22%,100%{filter:drop-shadow(0 0 3px #66dce333);}9%{filter:drop-shadow(0 0 13px #70efffcc) drop-shadow(0 0 5px #ffe5a9);}}
+.journey-dialog,.journey-dialog:has([data-map-style="aurora"]){width:min(940px,calc(100vw - 24px))!important;}
+.journey-designs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:min(520px,calc(100% - 32px));margin-inline:auto;gap:10px;}
+.journey-designs button{width:100%;min-width:0;}
+.journey[data-map-style="aurora"] .j-node{display:grid;grid-template-columns:48px minmax(0,1fr);column-gap:16px;align-items:center;min-height:112px;}
+.journey[data-map-style="aurora"] .j-rail{position:relative;left:auto;top:auto;transform:translateX(calc(var(--drift)*12px));width:auto;height:auto;justify-items:center;}
+.journey[data-map-style="aurora"] .j-card,.journey[data-map-style="aurora"] .way-left .j-card{width:100%;margin-left:0;box-sizing:border-box;}
+.journey .j-node.locked{opacity:1;}
+@media(max-width:600px){.journey[data-map-style="aurora"] .j-node{grid-template-columns:44px minmax(0,1fr);column-gap:12px;}.journey[data-map-style="aurora"] .j-rail{transform:none;}}
+@media(prefers-reduced-motion:reduce){.weekly-star.lit{animation:none;filter:drop-shadow(0 0 7px #66dce377);}}
+
+.technique-video{margin:20px 0;padding:12px;background:#090f1e;border:1px solid #344259;border-radius:16px;}
+.technique-video video{display:block;width:100%;max-height:480px;border-radius:10px;}
+.technique-video figcaption{margin-top:10px;font-size:14px;color:#aec2d7;}
+.technique-chapters{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+.technique-chapters button{min-height:40px;padding:8px 12px;font-size:15px;}
+
+@media(min-width:421px) and (max-width:760px){
+ .note-stage #stageDock{left:0!important;right:110px!important;width:auto!important;transform:none!important;display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));justify-items:center;gap:0;}
+ .note-stage #stageDock .dock-btn{margin-inline:0!important;}
+}
+
+@media(max-width:760px){.note-stage .speed-cycle-btn small{font-size:12px!important;line-height:1.1!important;}}

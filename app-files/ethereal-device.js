@@ -1,7 +1,7 @@
 /* Device diagnostics for opted-in cloud saves. No IP, location service or fingerprint. */
 (function(){
  'use strict';
- const RELEASE='r35';
+ const RELEASE='r36';
  const clean=(v,n=100)=>String(v||'').replace(/[\u0000-\u001f]/g,' ').slice(0,n);
  function describe(env){
   const n=env.navigator||{},s=env.screen||{},ua=String(n.userAgent||''),hints=env.hints||{},forms=hints.formFactors||[];

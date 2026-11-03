@@ -12,6 +12,12 @@
     { id: 'bronze', name: 'Bronze', tier: 'Starter', palette: ['#e4b37d','#946133','#3d240f'] },
     { id: 'silver', name: 'Silver', tier: 'Journey', unlock: { boss: 0 }, palette: ['#f8fafc','#afb8c8','#5c6475'] },
     { id: 'gold', name: 'Gold', tier: 'Journey', unlock: { boss: 1 }, palette: ['#fff0ba','#c69732','#6a4710'] },
+    { id:'aurora-pearl',name:'Aurora pearl',tier:'Constellation',unlock:{weekly:2},palette:['#f6fff3','#87ccc2','#77639f'] },
+    { id:'cosmic-copper',name:'Cosmic copper',tier:'Constellation',unlock:{weekly:3},palette:['#ffdbad','#b47465','#44436a'] },
+    { id:'jade-lantern',onlyTongue:true,name:'Jade lantern',tier:'Seasonal',unlock:{bossPath:'lanterns'},palette:['#e6f5ba','#4aaf8b','#164e51'],pattern:'mandala',accent:'gold' },
+    { id:'sakura-porcelain',onlyTongue:true,name:'Sakura porcelain',tier:'Seasonal',unlock:{bossPath:'japan'},palette:['#fff2f6','#d99eae','#705776'],pattern:'spiral',accent:'silver' },
+    { id:'winter-bell',name:'Winter bell',tier:'Seasonal',unlock:{bossPath:'winter'},palette:['#eefcfe','#73b5c7','#27466c'] },
+    { id:'harvest-moon',name:'Harvest moon',tier:'Seasonal',unlock:{bossPath:'halloween'},palette:['#f9cc80','#bc753a','#4c315c'] },
     { id: 'starlight-opal', name: 'Starlight opal', tier: 'Constellation', unlock: { weekly: 1 }, palette: ['#fff5e2','#88c8da','#675a9c'], texture: 'starlight-opal.svg' },
     { id: 'champagne', name: 'Champagne', tier: 'Journey', unlock: { level: 5 }, palette: ['#f8eaca','#bea17c','#6d593c'] },
     { id: 'patina', name: 'Patina teal', tier: 'Rare', unlock: { streak: 7 }, palette: ['#79c6b8','#286f69','#103a39'] },
@@ -188,6 +194,8 @@
   function enhanceTongue(body) {
     const overlay=el('svg',{viewBox:'-1.09 -1.09 2.18 2.18',class:'cos-td-overlay','aria-hidden':'true'});
     overlay.innerHTML=patternSvg(undefined,true)+rimSvg(96);body.appendChild(overlay);
+    const seal=document.createElement('span');seal.className='ethereal-seal';seal.setAttribute('aria-hidden','true');seal.setAttribute('translate','no');
+    seal.innerHTML='<span class="seal-latin">ETHEREAL</span><span class="seal-chinese">空灵舌鼓</span>';body.appendChild(seal);
   }
   window.EtherealCosmetics={skins,rims,accents,patterns,nebulas,shapes,handpanFields,tonguePath,tongueCutSvg,catalog,gate,asset,skinOf,effective,preview,enhanceDrum,enhanceTongue,apply};
 })();
