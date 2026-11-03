@@ -1,0 +1,20 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "The Moon Represents My Heart",
+    "sequence": "5̣:0.5 1 0:0.5 3:0.5 5 0:0.5 1 0 3:0.5 5 0:0.5 5:0.5 6 0:0.5 7:0.5 1̇ 0:0.5 6:0.5 5 0:2 3:0.5 | 2:0.5 1 0:0.5 1:0.5 1 3:0.5 | 2:0.5 1 0:0.5 1 0:0.5 2:0.5 | 3:0.5 2:0.5 2 1:0.5 6̣ 2:0.5 | 3 |",
+    "bpm": 78,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "月亮代表我的心",
+    "origin": "China",
+    "collection": "",
+    "pathPlacement": 0,
+    "sourceVideo": "15. Performance of The Moon Represents My Heart - A silent echo under the starry sky..mp4"
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Do You Want to Build a Snowman?",
+    "sequence": "1̇ 0:0.25 1̇:0.5 5 3̇:0.75 2̇ 3̇ 0:3 1̇:0.5 1̇ 5:0.5 1̇:0.5 3̇:0.5 2̇ 0:3.5 1̇:0.5 1̇:0.5 1̇:0.5 5:0.5 1̇:0.5 3̇:0.5 4 | 1̇ 0:0.5 3̇:0.5 4 0:0.25 1̇ 0:0.5 3̇:0.5 4:0.5 3̇ 1̇ 5 0:2.75 5:0.5 | 5 3̇:0.5 4:0.5 5 1̇ | 0:0.75 1̇:0.5 2̇:0.75 3̇ 0:1.5 2̇:0.25 2̇:0.5 3̇ 0:0.75 3̇:0.75 6 0:2.5 1̇:0.5 1̇:0.5 1̇:0.25 5+1̇ 3̇:0.25 3̇:0.25 2̇:0.25 2̇:0.75 3̇ | 0:2.25 1̇:0.5 1̇ 5:0.5 1̇:0.25 3̇ 0:0.25 2̇ 1̇ 0:1.75 1̇ 0:1.75 1̇ |",
+    "bpm": 96,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "",
+    "origin": "USA",
+    "collection": "winter",
+    "pathPlacement": 0,
+    "sourceVideo": "melodicforestau - tonguedrum tutorial goodvibes relax frozen [Ctq_FpMRlx6].mp4",
+    "festival": "winter"
+  }
+}

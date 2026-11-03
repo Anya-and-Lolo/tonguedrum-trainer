@@ -1,0 +1,12 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Note echo",
+    "sequence": "1 2 3 0 |",
+    "bpm": 60,
+    "scaleType": "major",
+    "folder": "demo",
+    "exercise": "echo",
+    "description": "Explore your own instrument. Listen, breathe, then play the next phrase."
+  }
+}

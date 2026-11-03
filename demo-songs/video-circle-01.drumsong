@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "The Passionate Girl of Hunan",
+    "sequence": "5̣ 0:0.5 3:0.5 2:0.5 7̣:0.5 6̣:0.25 6̣:0.25 5̣:0.5 | 6̣:0.5 7̣:0.5 7̣ 7̣ 7̣:0.5 7̣:0.5 | 6̣ 0:2 5̣:0.5 3̣:0.5 | 5̣:0.5 6̣:0.5 7̣:0.5 3̣:0.5 6̣:0.5 5̣:0.5 3̣:0.5 3̣+5̣:0.5 | 2:0.5 2 0:0.5 5̣ 2 | 0:0.75 3̣:0.5 5̣:0.75 5̣:0.75 6̣:0.5 7̣:0.5 2:0.5 6̣ 7̣:0.25 6̣:0.75 5̣ 2:0.5 3̣:0.5 5̣:0.5 6̣:0.5 7̣ 6̣:0.5 5̣:0.5 3̣:0.5 3̣:0.5 5̣:0.5 5̣ 3:0.5 2:0.5 7̣:0.5 6̣:0.25 6̣:0.75 6̣:0.5 7̣:0.5 7̣:0.5 7̣:0.5 2:0.5 7̣:0.5 6̣:0.5 5̣:0.5 6̣ 0:1.5 7̣:0.5 5̣:0.5 3̣:0.5 5̣:0.5 6̣:0.5 7̣ 6̣:0.5 5̣:0.5 3̣ 2:0.5 2 4̣:0.5 3̣ 2:0.75 | 3̣:0.25 5̣:0.5 3̣:0.5 5̣ 5̣:0.75 6̣:0.25 7̣:0.75 | 2:0.25 6̣ 0:0.75 7̣:0.25 5̣+6̣ 0:0.25 2:0.5 | 3̣:0.5 5̣:0.5 6̣:0.5 7̣ 6̣:0.5 5̣:0.5 3̣ |",
+    "bpm": 131,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "湘女多情",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "1. Performance of The Passionate Girl of Hunan - Let the ethereal sounds smooth out the wrinkles of life..mp4",
+    "festival": "lanterns"
+  }
+}

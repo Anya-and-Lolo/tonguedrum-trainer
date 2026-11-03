@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "A Thousand Miles Away",
+    "sequence": "5:0.5 1:0.25 1:0.75 2̇:0.5 2̇ 3̇ | 0:0.5 7̣ 1̇:0.5 5 6 | 0:0.5 1̇ 1̇:0.5 1̇:0.5 1̇:0.5 2̇ | 3̇:0.5 3̣ 5̣ 1:0.25 1:0.75 3 2̇ 2̇:0.5 2̇ 2̇+3̇ | 0:0.5 1 1̇:0.5 5 6 | 0:0.5 1̇ 1̇:0.5 1̇ 3̇ | 0:0.5 5̣:0.5 2̇ 0:2 5:0.5 1 1:0.5 2̇ 2̇+3̇ | 0:0.5 7̣ 1̇:0.5 5:0.5 5:0.5 6 | 0:0.5 1̇ 1̇:0.5 1̇:0.5 1̇:0.5 1̇:0.5 2̇ 5̣ 0 3 0 2̇ 2̇:0.5 2̇ 1̇ | 0:0.5 2̇ 2̇ 0:0.5 1̇ | 0:0.5 6 1̇:0.5 1̇:0.5 1̇ 6̣ 1 3 6 1̇:0.5 | 1̇:0.5 1̇ |",
+    "bpm": 120,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "千里之外",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "7. Performance of A Thousand Miles Away  A casual tap, and thoughts drift far away.mp4",
+    "festival": "lanterns"
+  }
+}

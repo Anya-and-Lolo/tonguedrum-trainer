@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Liang Liang",
+    "sequence": "3̇ 0 6̣+2:0.5 6̣:0.5 6̣:0.5 5̣:0.5 | 6̣:0.5 1:0.5 6̣:0.5 5̣ 6̣ 2 2:0.5 4̣:0.5 4̣:0.5 1:0.5 3̣:0.5 3̣:0.5 4̣:0.5 | 1:0.5 6̣ 0:0.5 6̣+2:0.5 1 6̣:0.5 | 1:0.5 3̣:0.5 5 6̣+2:0.5 6̣:0.5 6̣:0.5 5̣:0.5 | 6̣:0.5 5̣:0.5 6̣:0.5 1:0.5 1:0.5 6̣:0.5 7̣+3 | 0:0.25 5̣:0.75 6̣:0.25 1 0:0.25 2:0.5 4̣ | 0:0.5 3̣:0.25 5̣ 0:0.25 2:0.5 2:0.5 7̣:0.5 6̣:0.25 2:0.5 6:0.25 6̣:0.25 4̣:0.5 1̇:0.5 2:0.25 6̣+2:0.25 6̣:0.5 6̣:0.5 5̣:0.5 6̣:0.5 1:0.5 6̣:0.5 5̣:0.5 5̣:0.5 6̣:0.5 2 0:0.5 2:0.5 4̣ 1:0.5 3̣:0.5 7:0.5 4̣:0.5 1:0.5 6̣ 1:0.5 6̣+2:0.5 1 6̣:0.5 1:0.25 | 1:0.25 3̣ |",
+    "bpm": 89,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "凉凉",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "33. Performance of Liang Liang  When Liang Liang Meets the Ethereal Drum, the Pure Sound Makes You Want to Cry.mp4",
+    "festival": "lanterns"
+  }
+}

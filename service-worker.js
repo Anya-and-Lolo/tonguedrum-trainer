@@ -1,6 +1,6 @@
-const CACHE = 'ethereal-drum-trainer-v35-badges1';
+const CACHE = 'ethereal-drum-trainer-v38-final';
 const SHELL = [
-  './app-files/ethereal-achievements.css?v=35-badges1',
+  './app-files/ethereal-achievements.css?v=36',
   './app-files/ethereal-badges.js',
   './app-files/ethereal-feedback.js',
   './app-files/badges/beginner.webp',
@@ -35,10 +35,10 @@ const SHELL = [
   './app-files/cosmetics/starlight-opal.svg',
   './app-files/ethereal-translations.js',
   './app-files/ethereal-i18n.js',
-  './app-files/ethereal-i18n.css?v=35',
+  './app-files/ethereal-i18n.css?v=38',
   './app-files/ethereal-lessons.js',
   './app-files/ethereal-cosmetics.js',
-  './app-files/ethereal-cosmetics.css?v=35',
+  './app-files/ethereal-cosmetics.css?v=38',
   './app-files/cosmetics/eclipse.svg',
   './app-files/cosmetics/hammered.svg',
   './app-files/cosmetics/marble-mint.webp',
@@ -51,11 +51,13 @@ const SHELL = [
 
   './',
   './index.html',
-  './app-files/ethereal-common.css?v=35',
+  './app-files/ethereal-common.css?v=36',
   './app-files/styles.css',
   './app-files/ethereal-common-layout.css',
   './app-files/ethereal-common.js',
   './app-files/app.js',
+  './app-files/tutorials/a-softer-tone.mp4',
+  './app-files/tongue-repertoire.js',
   './app-files/ethereal-cloud-config.js',
   './app-files/community-upload-config.js',
   './app-files/demo-catalog.js',

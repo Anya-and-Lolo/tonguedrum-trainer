@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "White Fox",
+    "sequence": "3̇:0.5 1̇:0.5 5̣ 5̣:0.5 6̣:0.5 1:0.5 6̣:0.5 | 1:0.5 1:0.5 1:0.5 1:0.5 1:0.5 2:0.5 6̣:0.5 2:0.5 | 1:0.5 6̣ 1:0.5 6̣:0.5 4:0.5 2:0.5 2 2 1:0.5 4̣:0.5 5̣:0.5 5̣:0.5 1:0.5 | 6̣:0.5 6̣ 4̣:0.5 5̣:0.5 6̣ 6̣:0.5 | 1:0.5 1:0.25 1:0.25 5̣ 3:0.5 4:0.5 4 | 2:0.5 2:0.5 6̣:0.5 2 5̣:0.25 5̣:0.25 5̣:0.5 5̣:0.5 | 6̣:0.5 5̣:0.5 4̣:0.5 2:0.5 4̣ |",
+    "bpm": 74,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "白狐",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "57. Performance of White Fox  Practice your instrument while watching TV series..mp4",
+    "festival": "lanterns"
+  }
+}

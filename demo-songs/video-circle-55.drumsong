@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Stars and Moon Falling",
+    "sequence": "1̇:0.5 6:0.5 7̣+5 5:0.5 4:0.5 1+5:0.25 1+5:0.25 6:0.25 1:0.25 | 2:0.5 4:0.5 2+5:0.5 6:0.5 1̇:0.5 5 0:0.5 1̇:0.5 6:0.5 7̣+5 5:0.5 6:0.25 6:0.25 1:0.5 2̇:0.25 1:0.25 | 5:0.5 1̇:0.5 6:0.5 6̣:0.5 1 4:0.25 4:0.75 | 1̇:0.5 6:0.25 6:0.25 7̣+5 5:0.5 4:0.5 1:0.5 4:0.5 | 2:0.5 4:0.5 2:0.5 6:0.25 6:0.25 1̇:0.5 5:0.5 4̣:0.5 6̣:0.25 6̣:0.25 | 1 6̣ 5:0.5 6:0.25 6:0.25 1:0.75 6:0.25 | 5:0.5 4:0.25 2:0.25 2 |",
+    "bpm": 75,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "星月落",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "55. Performance of Stars and Moon Falling  Moonlight like water, drum rhythm like poetry.mp4",
+    "festival": "lanterns"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Summer Wind",
+    "sequence": "3:0.5 4:0.5 5:0.5 5 0:0.5 1:0.5 1 0:0.5 6̣:0.5 2:0.5 5̣:0.5 3 0:0.5 7̣:0.5 7̣:0.5 1:0.5 2:0.5 2 7̣:0.5 7̣ 0:0.5 5̣:0.5 2:0.5 6̣+2:0.5 1 0:0.5 3:0.5 4:0.5 5:0.5 5:0.5 4̣ 1:0.5 1 0:0.5 1:0.5 2:0.5 5̣ 7̣:0.5 7̣ 5̣ 0:0.5 1+4 4:0.5 4 0:0.5 2 3 0 3:0.5 4:0.5 5:0.5 5:0.5 5 1:0.5 1 0:0.5 6̣:0.5 2:0.5 5̣:0.5 3 0:0.5 7̣:0.5 7̣+3 2:0.5 2 0:0.5 7̣ 0:0.5 5̣:0.5 2:0.5 6̣:0.5 1 0:0.5 5:0.5 4:0.5 3 4̣ 3:0.5 4 0:0.5 5:0.5 3:0.5 5̣ 0:0.5 1:0.5 | 1 7̣:0.5 1 |",
+    "bpm": 114,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "夏天的风",
+    "origin": "China",
+    "collection": "",
+    "pathPlacement": 0,
+    "sourceVideo": "5. Performance of Summer Wind - Silent Echoes in the Breeze.mp4"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Baby Baby",
+    "sequence": "1:0.5 2:0.5 3:0.5 1:0.5 2:0.5 5:0.5 5 | 3:0.5 6:0.5 6:0.5 6:0.5 6:0.5 5:0.5 5:0.5 3:0.5 | 1:0.5 1:0.5 1:0.5 6:0.5 6:0.5 5:0.5 3:0.5 5:0.5 | 2:0.5 2:0.5 3:0.5 3:0.5 2:0.5 1:0.5 3:0.5 2:0.5 | 1:0.5 2:0.5 3:0.5 1:0.5 2:0.5 5:0.5 5 | 3:0.5 6:0.5 6:0.5 1̇:0.5 7:0.5 6:0.5 5 | 1:0.5 1:0.5 1:0.5 6:0.5 5:0.5 5:0.5 3 | 2:0.5 2:0.5 3:0.5 3:0.5 2:0.5 1:0.5 2:0.5 1:0.5 |",
+    "bpm": 60,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 8,
+    "octaveAdapt": true,
+    "description": "A phrase from the video, checked against its numbered notes.",
+    "videoStudy": true,
+    "scoreReview": "caption-checked",
+    "originalTitle": "宝贝宝贝",
+    "origin": "China",
+    "collection": "",
+    "pathPlacement": 0,
+    "sourceVideo": "51. Baby Baby  Even beginners can play! Ethereal drum workshop.mp4"
+  }
+}

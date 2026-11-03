@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Unfettered",
+    "sequence": "6̣ 1:0.5 3:0.5 1̇ 6 | 3̣:0.5 5̣:0.5 5 3 0 6:0.5 6̣:0.5 7 5̣ 0 6̣:0.5 6:0.5 2̇:0.5 1̇ 0:0.5 6 | 6̣ 1:0.5 3:0.5 1̇ 6 | 3̣:0.5 5̣:0.5 6 5 4:0.5 5:0.5 | 4̣ 6̣ 2̇:0.5 1̇:0.5 7 | 3̣+7̣:0.5 7 |",
+    "bpm": 89,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "无羁",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "56. Performance of Unfettered  Encountering a clear and tranquil moment..mp4",
+    "festival": "lanterns"
+  }
+}

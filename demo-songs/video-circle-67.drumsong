@@ -1,0 +1,20 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Castle in the Sky",
+    "sequence": "6:0.5 7:0.5 1:0.5 3 7:0.5 1:0.5 3 0:0.5 5̣:0.5 3:0.5 5:0.5 7 0:0.5 3 6:0.5 1:0.5 4:0.5 5:0.5 4̣ | 0 3̣:0.5 1:0.5 3:0.5 5:0.5 1̇ | 2:0.5 3:0.5 4 1:0.5 3:0.5 4 | 1 3 1:0.5 3:0.5 6 | 1̇:0.5 1̇ 0 4:0.5 4 | 7 5̣ |",
+    "bpm": 80,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "天空之城",
+    "origin": "Japan",
+    "collection": "japan",
+    "pathPlacement": 0,
+    "sourceVideo": "67. Performance of Castle in the Sky - A Healing Journey with Ethereal Drums.mp4"
+  }
+}

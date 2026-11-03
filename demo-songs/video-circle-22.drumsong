@@ -1,0 +1,21 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "All My Thoughts Are Stars",
+    "sequence": "2:0.5 3:0.5 1̇ 0:0.5 5 0 3:0.5 1̇ 1̇:0.5 5 0:0.5 2:0.5 3:0.5 1̇ 0:0.5 5 0:0.5 3:0.5 2:0.5 5:0.5 3 0:2 3:0.5 1̇ 1̇:0.5 5 0 3:0.5 1̇ 1̇:0.5 5 0:1.5 1̇:0.25 1̇+2̇:0.25 3̇ 0:5.5 2:0.5 3:0.5 1̇:0.5 7:0.5 1̇:0.5 5 0 3:0.5 1̇ 1̇:0.5 5 0:1.5 3+1̇ 1̇:0.25 5 0:0.75 3:0.5 2:0.25 5:0.5 3 0:1.75 2:0.5 3:0.5 1̇:0.5 7:0.5 1̇:0.25 5:0.5 3̣ 2:0.75 3:0.25 1̇:0.5 7:0.5 1̇:0.5 5 0:0.5 1̇ 2̇:0.5 1̇ 0 4 0 3 |",
+    "bpm": 124,
+    "scaleType": "major",
+    "folder": "demo",
+    "minTongues": 11,
+    "octaveAdapt": true,
+    "description": "Preview arrangement from the video. The melody and accompaniment still need a listening check.",
+    "videoStudy": true,
+    "scoreReview": "machine-assisted, simplified excerpt",
+    "originalTitle": "满目星辰皆是你",
+    "origin": "China",
+    "collection": "lanterns",
+    "pathPlacement": 0,
+    "sourceVideo": "22. Performance of All My Thoughts Are Stars - Moonlight Like Water, Drum Rhythm Like Poetry.mp4",
+    "festival": "lanterns"
+  }
+}

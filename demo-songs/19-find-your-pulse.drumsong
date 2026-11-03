@@ -1,0 +1,12 @@
+{
+  "format": "ethereal-drum-song-v3",
+  "song": {
+    "title": "Find your pulse",
+    "sequence": "1 2 3 0 |",
+    "bpm": 60,
+    "scaleType": "major",
+    "folder": "demo",
+    "exercise": "pulse",
+    "description": "Explore your own instrument. Listen, breathe, then play the next phrase."
+  }
+}
